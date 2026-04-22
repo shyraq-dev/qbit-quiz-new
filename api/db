@@ -1,0 +1,186 @@
+/**
+ * /api/db.js — Vercel Serverless Function
+ * Supabase credentials серверде ғана тұрады, клиентке шықпайды.
+ *
+ * Vercel Dashboard → Settings → Environment Variables:
+ *   SUPABASE_URL      = https://xxxx.supabase.co
+ *   SUPABASE_ANON_KEY = eyJhb...
+ */
+
+const SB_URL = process.env.SUPABASE_URL;
+const SB_KEY = process.env.SUPABASE_ANON_KEY;
+
+// Allowed actions — whitelist, басқа ештеңе өтпейді
+const ACTIONS = {
+  upsert_user:    upsertUser,
+  save_game:      saveGame,
+  get_profile:    getProfile,
+  get_history:    getHistory,
+  get_leaderboard:getLeaderboard,
+};
+
+export default async function handler(req, res) {
+  // CORS
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+  if (req.method === 'OPTIONS') return res.status(200).end();
+  if (req.method !== 'POST')   return res.status(405).json({ error: 'POST only' });
+
+  const { action, payload } = req.body || {};
+  const fn = ACTIONS[action];
+  if (!fn) return res.status(400).json({ error: 'Unknown action: ' + action });
+
+  try {
+    const data = await fn(payload || {});
+    res.status(200).json({ ok: true, data });
+  } catch (e) {
+    console.error('[db]', action, e.message);
+    res.status(500).json({ ok: false, error: e.message });
+  }
+}
+
+// ── Supabase REST helpers ─────────────────────────────────
+function headers(extra = {}) {
+  return {
+    'Content-Type': 'application/json',
+    'apikey': SB_KEY,
+    'Authorization': 'Bearer ' + SB_KEY,
+    ...extra,
+  };
+}
+
+async function sbSelect(table, qs = '') {
+  const r = await fetch(`${SB_URL}/rest/v1/${table}?${qs}`, { headers: headers() });
+  if (!r.ok) throw new Error(await r.text());
+  return r.json();
+}
+
+async function sbUpsert(table, body, conflict) {
+  const r = await fetch(`${SB_URL}/rest/v1/${table}`, {
+    method: 'POST',
+    headers: headers({
+      'Prefer': `resolution=merge-duplicates,return=representation`,
+      'on-conflict': conflict,
+    }),
+    body: JSON.stringify(body),
+  });
+  if (!r.ok) throw new Error(await r.text());
+  return r.json();
+}
+
+async function sbInsert(table, body) {
+  const r = await fetch(`${SB_URL}/rest/v1/${table}`, {
+    method: 'POST',
+    headers: headers({ 'Prefer': 'return=representation' }),
+    body: JSON.stringify(body),
+  });
+  if (!r.ok) throw new Error(await r.text());
+  return r.json();
+}
+
+// ── Action handlers ───────────────────────────────────────
+
+/** Жаңа қолданушыны тіркеу немесе жаңарту */
+async function upsertUser({ id, username, first_name, avatar_url }) {
+  if (!id || !username) throw new Error('id and username required');
+  // username бар-жоғын тексеру (басқа пайдаланушыда)
+  const existing = await sbSelect('users', `username=eq.${encodeURIComponent(username)}&id=neq.${id}&limit=1`);
+  if (existing.length > 0) throw new Error('USERNAME_TAKEN');
+
+  const rows = await sbUpsert('users', {
+    id, username, first_name: first_name || username, avatar_url: avatar_url || null,
+  }, 'id');
+  return Array.isArray(rows) ? rows[0] : rows;
+}
+
+/** Ойын нәтижесін сақтау + user stats жаңарту */
+async function saveGame({ user_id, score, pct, best_streak, category, difficulty }) {
+  if (!user_id) throw new Error('user_id required');
+
+  // 1. games кестесіне жаз
+  await sbInsert('games', { user_id, score, pct, best_streak, category, difficulty });
+
+  // 2. users кестесіндегі агрегатты жаңарт (Supabase RPC арқылы atomic update)
+  const r = await fetch(`${SB_URL}/rest/v1/rpc/update_user_stats`, {
+    method: 'POST',
+    headers: headers(),
+    body: JSON.stringify({ p_user_id: user_id, p_score: score, p_streak: best_streak }),
+  });
+  if (!r.ok) {
+    // RPC жоқ болса fallback: жай SELECT + upsert
+    const users = await sbSelect('users', `id=eq.${user_id}&limit=1`);
+    const u = users[0] || {};
+    await sbUpsert('users', {
+      id: user_id,
+      username: u.username,
+      first_name: u.first_name,
+      avatar_url: u.avatar_url,
+      total_games:  (u.total_games  || 0) + 1,
+      best_score:   Math.max(u.best_score  || 0, score),
+      total_score:  (u.total_score  || 0) + score,
+      best_streak:  Math.max(u.best_streak || 0, best_streak),
+    }, 'id');
+  }
+  return { saved: true };
+}
+
+/** Профиль деректерін алу */
+async function getProfile({ user_id }) {
+  if (!user_id) throw new Error('user_id required');
+  const rows = await sbSelect('users', `id=eq.${user_id}&limit=1`);
+  return rows[0] || null;
+}
+
+/** Ойын тарихы */
+async function getHistory({ user_id, limit = 10 }) {
+  if (!user_id) throw new Error('user_id required');
+  return sbSelect('games', `user_id=eq.${user_id}&order=played_at.desc&limit=${limit}`);
+}
+
+/** Рейтинг */
+async function getLeaderboard({ period = 'all', limit = 50 }) {
+  if (period === 'all') {
+    const users = await sbSelect('users', `order=best_score.desc&limit=${limit}`);
+    return users.map(u => ({
+      id: u.id,
+      name: u.first_name || u.username,
+      username: u.username,
+      avatar: u.avatar_url,
+      score: u.best_score,
+      games: u.total_games,
+    }));
+  }
+
+  // Апта / бүгін үшін games кестесінен
+  const now = new Date();
+  const from = period === 'today'
+    ? new Date(now.getFullYear(), now.getMonth(), now.getDate()).toISOString()
+    : new Date(now - 7 * 864e5).toISOString();
+
+  const games = await sbSelect('games',
+    `played_at=gte.${from}&order=score.desc&limit=500`);
+
+  // Пайдаланушы бойынша ең жоғары score
+  const map = {};
+  for (const g of games) {
+    if (!map[g.user_id] || g.score > map[g.user_id]) map[g.user_id] = g.score;
+  }
+  const uids = Object.keys(map);
+  if (!uids.length) return [];
+
+  const users = await sbSelect('users', `id=in.(${uids.join(',')})`);
+  const umap = Object.fromEntries(users.map(u => [u.id, u]));
+
+  return uids
+    .map(id => ({
+      id,
+      name: umap[id]?.first_name || umap[id]?.username || id,
+      username: umap[id]?.username || id,
+      avatar: umap[id]?.avatar_url,
+      score: map[id],
+      games: umap[id]?.total_games || 0,
+    }))
+    .sort((a, b) => b.score - a.score)
+    .slice(0, limit);
+}
