@@ -1,0 +1,492 @@
+<!DOCTYPE html>
+<html lang="kk">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>QBit Quiz</title>
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+
+html, body {
+  height: 100%; width: 100%;
+  background: #070710;
+  color: #e8e8ff;
+  font-family: 'Space Mono', 'Courier New', monospace;
+  overflow: hidden;
+}
+
+/* Grid background — точно как в React */
+body::before {
+  content: '';
+  position: fixed; inset: 0; pointer-events: none; z-index: 0;
+  background-image:
+    linear-gradient(rgba(0,255,136,0.04) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0,255,136,0.04) 1px, transparent 1px);
+  background-size: 40px 40px;
+}
+
+/* SCREENS */
+.screen {
+  position: fixed; inset: 0; z-index: 1;
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  padding: 24px 20px;
+  opacity: 0; pointer-events: none;
+  transition: opacity 0.25s ease;
+  overflow-y: auto;
+}
+.screen.active { opacity: 1; pointer-events: all; }
+
+.center {
+  position: relative; z-index: 1;
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  gap: 16px;
+  max-width: 480px; width: 100%;
+}
+
+/* HOME */
+.logo { display: flex; align-items: baseline; gap: 2px; }
+.logo-q    { font-size: 52px; font-weight: 900; color: #00ff88; letter-spacing: -2px; line-height: 1; }
+.logo-bit  { font-size: 52px; font-weight: 900; color: #e8e8ff; letter-spacing: -2px; line-height: 1; }
+.logo-quiz { font-size: 22px; font-weight: 400; color: #555; letter-spacing: 4px; margin-left: 6px; align-self: flex-end; padding-bottom: 6px; }
+
+.tagline { color: #556; font-size: 13px; letter-spacing: 1px; text-align: center; }
+
+.diff-row { display: flex; gap: 8px; }
+.diff-btn {
+  padding: 8px 20px; background: transparent;
+  border: 1px solid #222; color: #555;
+  border-radius: 4px; cursor: pointer;
+  font-family: inherit; font-size: 12px; letter-spacing: 1px;
+  transition: all 0.2s;
+}
+.diff-btn.active { border-color: #00ff88; color: #00ff88; background: rgba(0,255,136,0.06); }
+
+.start-btn {
+  padding: 14px 40px; background: #00ff88; color: #000;
+  border: none; border-radius: 4px; cursor: pointer;
+  font-family: inherit; font-weight: 700;
+  font-size: 15px; letter-spacing: 2px;
+  display: flex; align-items: center; justify-content: center; gap: 10px;
+  transition: transform 0.1s; width: 100%;
+}
+.start-btn:active { transform: scale(0.97); }
+
+.sub-hint { color: #333; font-size: 11px; letter-spacing: 0.5px; }
+
+/* CATEGORY */
+#category .center { gap: 20px; justify-content: flex-start; padding-top: 48px; }
+.cat-title { font-size: 16px; letter-spacing: 3px; color: #556; font-weight: 400; }
+.cat-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; width: 100%; }
+.cat-card {
+  background: rgba(255,255,255,0.03); border: 1px solid #1a1a2e;
+  border-radius: 8px; padding: 16px 8px;
+  display: flex; flex-direction: column; align-items: center; gap: 8px;
+  cursor: pointer; font-family: inherit; color: #e8e8ff; transition: all 0.2s;
+}
+.cat-card:active { border-color: #00ff88; background: rgba(0,255,136,0.04); }
+.cat-icon  { font-size: 28px; }
+.cat-label { font-size: 12px; letter-spacing: 1px; color: #778; }
+.cat-random { grid-column: 1/-1; flex-direction: row; justify-content: center; gap: 12px; padding: 14px; }
+.back-btn {
+  align-self: flex-start; background: none; border: none;
+  color: #556; cursor: pointer; font-family: inherit;
+  font-size: 13px; letter-spacing: 1px; padding: 0;
+}
+
+/* QUIZ */
+#quiz { justify-content: flex-start; padding-top: 12px; padding-bottom: 16px; }
+.quiz-wrap {
+  position: relative; z-index: 1;
+  width: 100%; max-width: 480px;
+  display: flex; flex-direction: column; gap: 12px;
+  height: 100%;
+}
+
+.hud {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 12px 16px;
+  background: rgba(255,255,255,0.03); border: 1px solid #111;
+  border-radius: 8px; flex-shrink: 0;
+}
+.hud-item  { display: flex; flex-direction: column; align-items: center; gap: 2px; }
+.hud-label { font-size: 9px; letter-spacing: 2px; color: #445; }
+.hud-value { font-size: 20px; font-weight: 700; color: #00ff88; }
+
+.timer-wrap { position: relative; width: 52px; height: 52px; }
+.timer-wrap svg { position: absolute; top: 0; left: 0; transform: rotate(-90deg); }
+.timer-num {
+  position: absolute; inset: 0; display: flex;
+  align-items: center; justify-content: center;
+  font-size: 14px; font-weight: 700; color: #00ff88; transition: color 0.3s;
+}
+
+.prog-bar  { height: 3px; background: #111; border-radius: 2px; overflow: hidden; flex-shrink: 0; }
+.prog-fill { height: 100%; background: #00ff88; border-radius: 2px; transition: width 0.4s; width: 0; }
+.prog-text { font-size: 10px; color: #334; letter-spacing: 1px; text-align: right; flex-shrink: 0; }
+
+.q-card {
+  background: rgba(255,255,255,0.025); border: 1px solid #141425;
+  border-radius: 12px; padding: 20px; flex: 1; overflow-y: auto;
+  display: flex; flex-direction: column;
+}
+
+.loader { display: flex; flex-direction: column; align-items: center; gap: 16px; padding: 40px 0; }
+.dots   { display: flex; }
+.dot {
+  width: 8px; height: 8px; border-radius: 50%;
+  background: #00ff88; margin: 0 4px;
+  animation: pulse 1s infinite;
+}
+.dot:nth-child(2) { animation-delay: 0.2s; }
+.dot:nth-child(3) { animation-delay: 0.4s; }
+.loader-text { color: #334; font-size: 12px; letter-spacing: 2px; }
+
+.q-text   { font-size: 16px; line-height: 1.6; margin-bottom: 20px; color: #dde; }
+.options  { display: flex; flex-direction: column; gap: 10px; }
+
+.opt {
+  display: flex; align-items: center; gap: 12px;
+  padding: 12px 14px;
+  background: rgba(255,255,255,0.04); border: 1px solid #1a1a2e;
+  border-radius: 8px; cursor: pointer; text-align: left; width: 100%;
+  font-family: inherit; color: #ccd; font-size: 14px; transition: all 0.2s;
+}
+.opt[disabled] { cursor: default; }
+.opt-letter { font-weight: 700; color: #445; min-width: 16px; font-size: 12px; }
+.opt-text   { flex: 1; }
+.opt.correct { background: rgba(0,255,136,0.12); border-color: #00ff88; color: #00ff88; }
+.opt.wrong   { background: rgba(255,68,102,0.12); border-color: #ff4466; color: #ff4466; }
+.opt.dim     { opacity: 0.35; }
+
+.explanation {
+  margin-top: 16px; padding: 12px 14px;
+  background: rgba(255,204,0,0.06); border: 1px solid rgba(255,204,0,0.2);
+  border-radius: 8px; font-size: 12px; color: #998; line-height: 1.6;
+  display: flex; gap: 8px; animation: fadeIn 0.3s ease;
+}
+
+/* RESULT */
+#result .center { gap: 24px; }
+.result-card {
+  width: 100%; background: rgba(255,255,255,0.025);
+  border: 1px solid #141425; border-radius: 16px; padding: 32px 24px;
+  display: flex; flex-direction: column; align-items: center; gap: 12px;
+}
+.rank-badge  { font-size: 14px; letter-spacing: 2px; color: #556; }
+.score-big   { font-size: 72px; font-weight: 900; color: #00ff88; line-height: 1; }
+.score-label { font-size: 11px; letter-spacing: 3px; color: #445; }
+.stats-row   { display: flex; gap: 24px; margin-top: 8px; }
+.stat-box    { display: flex; flex-direction: column; align-items: center; gap: 4px; }
+.stat-val    { font-size: 22px; font-weight: 700; color: #e8e8ff; }
+.stat-lbl    { font-size: 10px; color: #445; letter-spacing: 1px; }
+.result-bar-wrap { width: 100%; height: 4px; background: #111; border-radius: 2px; overflow: hidden; margin-top: 8px; }
+.result-bar  { height: 100%; border-radius: 2px; transition: width 1s ease; width: 0; }
+
+.btn-secondary {
+  padding: 14px 40px; width: 100%; justify-content: center;
+  background: transparent; border: 1px solid #333;
+  border-radius: 4px; color: #aaa; cursor: pointer;
+  font-family: inherit; font-size: 15px; letter-spacing: 2px;
+  display: flex; align-items: center; gap: 10px; transition: all 0.2s;
+}
+
+/* PARTICLES */
+.particle {
+  position: fixed; width: 8px; height: 8px; border-radius: 50%;
+  pointer-events: none; z-index: 999;
+  animation: pop 0.9s forwards ease-out;
+}
+
+@keyframes pulse  { 0%,100%{opacity:1} 50%{opacity:0.3} }
+@keyframes fadeIn { from{opacity:0} to{opacity:1} }
+@keyframes pop {
+  0%   { transform:translate(0,0) scale(1); opacity:1; }
+  100% { transform:translate(var(--dx),var(--dy)) scale(0); opacity:0; }
+}
+
+::-webkit-scrollbar { width: 2px; }
+::-webkit-scrollbar-thumb { background: #1a1a2e; border-radius: 2px; }
+</style>
+</head>
+<body>
+
+<!-- HOME -->
+<div id="home" class="screen active">
+  <div class="center">
+    <div class="logo">
+      <span class="logo-q">Q</span>
+      <span class="logo-bit">Bit</span>
+      <span class="logo-quiz">Quiz</span>
+    </div>
+    <p class="tagline">Білімді битке бөліп, жеңіске жина</p>
+    <div class="diff-row">
+      <button class="diff-btn" data-d="1">Оңай</button>
+      <button class="diff-btn active" data-d="2">Орташа</button>
+      <button class="diff-btn" data-d="3">Қиын</button>
+    </div>
+    <button class="start-btn" id="homeStart">▶&nbsp;&nbsp;БАСТАУ</button>
+    <p class="sub-hint">Категория таңда немесе кездейсоқ ойна</p>
+  </div>
+</div>
+
+<!-- CATEGORY -->
+<div id="category" class="screen">
+  <div class="center">
+    <button class="back-btn" id="catBack">← Артқа</button>
+    <p class="cat-title">Категория таңда</p>
+    <div class="cat-grid" id="catGrid"></div>
+  </div>
+</div>
+
+<!-- QUIZ -->
+<div id="quiz" class="screen">
+  <div class="quiz-wrap">
+    <div class="hud">
+      <div class="hud-item">
+        <span class="hud-label">ҰПАЙ</span>
+        <span class="hud-value" id="hudScore">0</span>
+      </div>
+      <div class="timer-wrap">
+        <svg width="52" height="52" viewBox="0 0 52 52">
+          <circle cx="26" cy="26" r="22" fill="none" stroke="#1a1a2e" stroke-width="4"/>
+          <circle id="timerArc" cx="26" cy="26" r="22" fill="none"
+            stroke="#00ff88" stroke-width="4" stroke-linecap="round"
+            stroke-dasharray="138.23 138.23"/>
+        </svg>
+        <div class="timer-num" id="timerNum">20</div>
+      </div>
+      <div class="hud-item">
+        <span class="hud-label">🔥 СЕРИЯ</span>
+        <span class="hud-value" id="hudStreak">0</span>
+      </div>
+    </div>
+    <div class="prog-bar"><div class="prog-fill" id="progFill"></div></div>
+    <p class="prog-text" id="progText">0/10 сұрақ</p>
+    <div class="q-card" id="qCard"></div>
+  </div>
+</div>
+
+<!-- RESULT -->
+<div id="result" class="screen">
+  <div class="center">
+    <div class="result-card">
+      <p class="rank-badge" id="resRank"></p>
+      <div class="score-big" id="resScore">0</div>
+      <p class="score-label">ҰПАЙ</p>
+      <div class="stats-row">
+        <div class="stat-box"><span class="stat-val" id="resBest">0</span><span class="stat-lbl">🔥 Серия</span></div>
+        <div class="stat-box"><span class="stat-val" id="resPct">0%</span><span class="stat-lbl">Нәтиже</span></div>
+        <div class="stat-box"><span class="stat-val" id="resTotal">0</span><span class="stat-lbl">Сұрақ</span></div>
+      </div>
+      <div class="result-bar-wrap"><div class="result-bar" id="resBar"></div></div>
+    </div>
+    <button class="start-btn" id="resReplay">🔄 Қайта ойна</button>
+    <button class="btn-secondary" id="resHome">← Басты бет</button>
+  </div>
+</div>
+
+<script>
+const tg = window.Telegram?.WebApp;
+if (tg) { tg.ready(); tg.expand(); }
+tg?.BackButton?.onClick(() => {
+  if (document.querySelector('.screen.active')?.id !== 'home') showScreen('home');
+});
+
+const CATS = [
+  {label:'Ғылым',      icon:'⚛️'},
+  {label:'Тарих',      icon:'🏛️'},
+  {label:'География',  icon:'🌍'},
+  {label:'Технология', icon:'💻'},
+  {label:'Мәдениет',   icon:'🎭'},
+  {label:'Математика', icon:'🔢'},
+];
+const TOTAL = 10;
+const CIRC  = 2 * Math.PI * 22;
+
+let difficulty=2, selCat=null;
+let score=0, streak=0, bestStreak=0, total=0;
+let timeLeft=20, timerId=null, revealed=false, curQ=null, usedQ=[];
+
+function showScreen(id) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  id !== 'home' ? tg?.BackButton?.show() : tg?.BackButton?.hide();
+}
+
+document.querySelectorAll('.diff-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.diff-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    difficulty = +btn.dataset.d;
+  });
+});
+
+document.getElementById('homeStart').addEventListener('click', () => { buildCatGrid(); showScreen('category'); });
+document.getElementById('catBack').addEventListener('click',  () => showScreen('home'));
+document.getElementById('resReplay').addEventListener('click',() => startQuiz(selCat));
+document.getElementById('resHome').addEventListener('click',  () => showScreen('home'));
+
+function buildCatGrid() {
+  const grid = document.getElementById('catGrid');
+  grid.innerHTML = '';
+  CATS.forEach(c => {
+    const b = document.createElement('button');
+    b.className = 'cat-card';
+    b.innerHTML = `<span class="cat-icon">${c.icon}</span><span class="cat-label">${c.label}</span>`;
+    b.addEventListener('click', () => startQuiz(c));
+    grid.appendChild(b);
+  });
+  const r = document.createElement('button');
+  r.className = 'cat-card cat-random';
+  r.innerHTML = `<span class="cat-icon">🎲</span><span class="cat-label">Кездейсоқ</span>`;
+  r.addEventListener('click', () => startQuiz(null));
+  grid.appendChild(r);
+}
+
+function startQuiz(cat) {
+  selCat=cat; score=0; streak=0; bestStreak=0; total=0; usedQ=[];
+  updateHUD(); showScreen('quiz'); loadQuestion();
+}
+
+async function loadQuestion() {
+  stopTimer(); revealed=false;
+  document.getElementById('qCard').innerHTML =
+    `<div class="loader"><div class="dots"><div class="dot"></div><div class="dot"></div><div class="dot"></div></div><p class="loader-text">Сұрақ жасалуда…</p></div>`;
+  const cat = selCat || CATS[Math.floor(Math.random()*CATS.length)];
+  try {
+    curQ = await genQ(cat.label, difficulty, usedQ);
+    usedQ.push(curQ.question.slice(0,40));
+    const ls = ['A','B','C','D'];
+    document.getElementById('qCard').innerHTML =
+      `<p class="q-text">${esc(curQ.question)}</p>
+       <div class="options">${curQ.options.map((o,i)=>`
+         <button class="opt" id="opt${i}" onclick="answer(${i})">
+           <span class="opt-letter">${ls[i]}</span>
+           <span class="opt-text">${esc(o)}</span>
+         </button>`).join('')}
+       </div><div id="xpl"></div>`;
+    startTimer();
+  } catch(e) {
+    document.getElementById('qCard').innerHTML =
+      `<p style="color:#ff4466;text-align:center;padding:40px 0;font-size:13px">Қате орын алды.<br>Қайталап көріңіз.</p>`;
+  }
+}
+
+function answer(idx) {
+  if (revealed) return;
+  stopTimer(); revealed=true; total++;
+  const ok = idx===curQ.correct;
+  mark(idx, ok);
+  if (ok) {
+    score += Math.max(1, Math.round((timeLeft/20)*10));
+    streak++; bestStreak=Math.max(bestStreak,streak);
+    tg?.HapticFeedback?.notificationOccurred('success');
+  } else {
+    streak=0;
+    tg?.HapticFeedback?.notificationOccurred('error');
+  }
+  spawn(ok); updateHUD();
+  setTimeout(() => total>=TOTAL ? endQuiz() : loadQuestion(), 1600);
+}
+
+function timeout() {
+  if (revealed) return;
+  revealed=true; total++; streak=0;
+  mark(-1,false); updateHUD();
+  setTimeout(() => total>=TOTAL ? endQuiz() : loadQuestion(), 1800);
+}
+
+function mark(chosen, ok) {
+  for(let i=0;i<4;i++){
+    const b=document.getElementById('opt'+i); if(!b) continue;
+    b.disabled=true;
+    if(i===curQ.correct) b.classList.add('correct');
+    else if(i===chosen&&!ok) b.classList.add('wrong');
+    else b.classList.add('dim');
+  }
+  if(curQ.explanation){
+    const x=document.getElementById('xpl');
+    if(x) x.innerHTML=`<div class="explanation"><span>💡</span><span>${esc(curQ.explanation)}</span></div>`;
+  }
+}
+
+function startTimer() {
+  timeLeft=20; renderTimer();
+  timerId=setInterval(()=>{ timeLeft--; renderTimer(); if(timeLeft<=0){stopTimer();timeout();} },1000);
+}
+function stopTimer(){ clearInterval(timerId); timerId=null; }
+function renderTimer(){
+  const color=timeLeft>10?'#00ff88':timeLeft>5?'#ffcc00':'#ff4466';
+  const n=document.getElementById('timerNum'), a=document.getElementById('timerArc');
+  if(n){n.textContent=timeLeft;n.style.color=color;}
+  if(a){a.style.strokeDasharray=`${(timeLeft/20)*CIRC} ${CIRC}`;a.style.stroke=color;}
+}
+
+function updateHUD(){
+  document.getElementById('hudScore').textContent=score;
+  document.getElementById('hudStreak').textContent=streak;
+  document.getElementById('progFill').style.width=`${(total/TOTAL)*100}%`;
+  document.getElementById('progText').textContent=`${total}/${TOTAL} сұрақ`;
+}
+
+function spawn(ok){
+  const color=ok?'#00ff88':'#ff4466';
+  const cx=window.innerWidth/2, cy=window.innerHeight*.5;
+  for(let i=0;i<12;i++){
+    const el=document.createElement('div');
+    el.className='particle';
+    el.style.cssText=`left:${cx}px;top:${cy}px;background:${color}`;
+    const a=Math.random()*2*Math.PI, d=40+Math.random()*80;
+    el.style.setProperty('--dx',Math.cos(a)*d+'px');
+    el.style.setProperty('--dy',Math.sin(a)*d-40+'px');
+    document.body.appendChild(el);
+    setTimeout(()=>el.remove(),900);
+  }
+}
+
+function endQuiz(){
+  stopTimer();
+  const pct=Math.round((score/(TOTAL*10))*100);
+  const rank=pct>=80?'🏆 Чемпион':pct>=60?'⭐ Тәжірибелі':pct>=40?'📈 Дамушы':'🌱 Жаңадан';
+  document.getElementById('resRank').textContent=rank;
+  document.getElementById('resScore').textContent=score;
+  document.getElementById('resBest').textContent=bestStreak;
+  document.getElementById('resPct').textContent=pct+'%';
+  document.getElementById('resTotal').textContent=total;
+  const bar=document.getElementById('resBar');
+  bar.style.width='0'; bar.style.background=pct>=60?'#00ff88':'#ffcc00';
+  showScreen('result');
+  setTimeout(()=>{ bar.style.width=pct+'%'; },100);
+}
+
+const SYS=`Сен QBit Quiz платформасының AI-сұрақ генераторысың. Қазақша тест сұрақтары жасайсың.
+Форматы — тек JSON, басқа ешнәрсе жоқ:
+{"question":"...","options":["...","...","...","..."],"correct":0,"explanation":"..."}
+Ережелер:
+- Сұрақ нақты, анық, бір мағыналы болуы керек
+- Дұрыс жауап correct индексімен көрсетіледі (0-3)
+- Жауаптар нанымды, бірдей ұзындықта болуы керек
+- Тек қазақша`;
+
+async function genQ(cat,diff,used){
+  const dTxt=diff===1?'оңай':diff===2?'орташа':'қиын';
+  const note=used.length?`\nБұл сұрақтарды қайталама: ${used.slice(-5).join(' | ')}`:'';
+  const r=await fetch('https://api.anthropic.com/v1/messages',{
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({
+      model:'claude-sonnet-4-20250514', max_tokens:1000, system:SYS,
+      messages:[{role:'user',content:`Категория: ${cat}\nКүрделілік: ${dTxt}${note}\n\nЖаңа сұрақ жаса.`}]
+    })
+  });
+  const d=await r.json();
+  return JSON.parse((d.content?.[0]?.text||'').replace(/```json|```/g,'').trim());
+}
+
+function esc(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+</script>
+</body>
+</html>
