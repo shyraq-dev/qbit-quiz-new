@@ -1,0 +1,1551 @@
+<!DOCTYPE html>
+<html lang="kk">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>QBit Quiz</title>
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+html,body{height:100%;width:100%;background:#070710;color:#e8e8ff;font-family:'Space Mono','Courier New',monospace;overflow:hidden}
+body::before{content:'';position:fixed;inset:0;pointer-events:none;z-index:0;
+  background-image:linear-gradient(rgba(0,255,136,0.04)1px,transparent 1px),linear-gradient(90deg,rgba(0,255,136,0.04)1px,transparent 1px);
+  background-size:40px 40px}
+
+/* ── SCREENS ── */
+.screen{position:fixed;inset:0;z-index:1;display:flex;flex-direction:column;align-items:center;
+  padding:0 0 64px;opacity:0;pointer-events:none;transition:opacity .22s ease;overflow-y:auto}
+.screen.active{opacity:1;pointer-events:all}
+.screen-inner{position:relative;z-index:1;width:100%;max-width:480px;padding:16px 16px 24px;
+  display:flex;flex-direction:column;gap:14px;min-height:100%}
+
+/* ── TOPBAR ── */
+.topbar{display:flex;align-items:center;justify-content:space-between;padding:12px 0 4px;flex-shrink:0}
+.topbar-title{font-size:12px;letter-spacing:3px;color:#445}
+.topbar-logo{font-size:20px;font-weight:700;color:#00ff88;letter-spacing:-1px}
+
+/* ── BOTTOM NAV ── */
+.bnav{position:fixed;bottom:0;left:0;right:0;z-index:100;
+  display:none;justify-content:space-around;align-items:center;
+  background:#0a0a18;border-top:1px solid #141425;
+  padding:8px 0 max(8px,env(safe-area-inset-bottom))}
+.bnav.show{display:flex}
+.bnav-btn{display:flex;flex-direction:column;align-items:center;gap:3px;
+  background:none;border:none;color:#334;cursor:pointer;font-family:inherit;
+  font-size:9px;letter-spacing:1px;padding:4px 16px;transition:color .18s}
+.bnav-btn.active{color:#00ff88}
+.bnav-icon{font-size:22px;line-height:1}
+
+/* ── DRAWER ── */
+.drawer-bg{position:fixed;inset:0;z-index:200;background:rgba(7,7,16,.7);
+  opacity:0;pointer-events:none;transition:opacity .25s}
+.drawer-bg.show{opacity:1;pointer-events:all}
+.drawer{position:fixed;left:0;top:0;bottom:0;width:260px;z-index:201;
+  background:#0a0a18;border-right:1px solid #141425;
+  transform:translateX(-100%);transition:transform .28s ease;
+  display:flex;flex-direction:column;padding:40px 0 24px}
+.drawer.open{transform:translateX(0)}
+.drawer-user{padding:16px 20px 20px;border-bottom:1px solid #141425;display:flex;gap:12px;align-items:center}
+.drawer-avatar{width:44px;height:44px;border-radius:50%;border:1.5px solid #00ff88;
+  background:#0d0d1a;display:flex;align-items:center;justify-content:center;font-size:22px;overflow:hidden;flex-shrink:0}
+.drawer-avatar img{width:100%;height:100%;object-fit:cover;border-radius:50%}
+.drawer-name{font-size:14px;font-weight:700;color:#e8e8ff}
+.drawer-handle{font-size:10px;color:#445;letter-spacing:1px}
+.drawer-items{flex:1;overflow-y:auto;padding:8px 0}
+.drawer-item{display:flex;align-items:center;gap:12px;padding:14px 20px;
+  color:#778;font-size:13px;letter-spacing:.5px;cursor:pointer;transition:all .18s;
+  background:none;border:none;font-family:inherit;width:100%;text-align:left}
+.drawer-item:hover,.drawer-item.active{color:#e8e8ff;background:rgba(255,255,255,.03)}
+.drawer-item .di-icon{font-size:18px;width:22px;text-align:center}
+.drawer-sep{height:1px;background:#141425;margin:8px 16px}
+
+/* ── CARDS ── */
+.card{background:rgba(255,255,255,.025);border:1px solid #141425;border-radius:12px;padding:16px}
+.card-sm{background:rgba(255,255,255,.025);border:1px solid #141425;border-radius:10px;padding:14px}
+
+/* ── BUTTONS ── */
+.btn-green{padding:13px;background:#00ff88;color:#000;border:none;border-radius:6px;
+  cursor:pointer;font-family:inherit;font-weight:700;font-size:14px;letter-spacing:1.5px;
+  display:flex;align-items:center;justify-content:center;gap:8px;transition:transform .1s;width:100%}
+.btn-green:active{transform:scale(.97)}
+.btn-outline{padding:12px;background:transparent;border:1px solid #222;border-radius:6px;
+  color:#778;cursor:pointer;font-family:inherit;font-size:13px;letter-spacing:1px;
+  display:flex;align-items:center;justify-content:center;gap:8px;transition:all .18s;width:100%}
+.btn-outline:hover{border-color:#00ff88;color:#00ff88}
+.btn-red{padding:12px;background:rgba(255,68,102,.1);border:1px solid rgba(255,68,102,.3);
+  color:#ff4466;border-radius:6px;cursor:pointer;font-family:inherit;font-size:13px;width:100%;
+  display:flex;align-items:center;justify-content:center;gap:8px;transition:all .18s}
+
+/* ── FORM ── */
+.inp-group{display:flex;flex-direction:column;gap:6px}
+.inp-label{font-size:9px;letter-spacing:2px;color:#445}
+.inp{width:100%;padding:11px 13px;background:rgba(255,255,255,.04);border:1px solid #1a1a2e;
+  border-radius:7px;color:#e8e8ff;font-family:inherit;font-size:14px;outline:none;transition:border-color .18s}
+.inp:focus{border-color:#00ff88}
+.inp-err{font-size:10px;color:#ff4466;letter-spacing:.5px;min-height:14px}
+textarea.inp{resize:none;min-height:72px}
+.form-section{display:flex;flex-direction:column;gap:10px}
+
+/* ── MODAL ── */
+.modal-bg{position:fixed;inset:0;z-index:300;background:rgba(7,7,16,.92);
+  display:flex;align-items:flex-end;justify-content:center;
+  opacity:0;pointer-events:none;transition:opacity .22s}
+.modal-bg.show{opacity:1;pointer-events:all}
+.modal{background:#0d0d1a;border:1px solid #1a1a2e;border-radius:16px 16px 0 0;
+  padding:28px 20px 36px;width:100%;max-width:480px;
+  display:flex;flex-direction:column;gap:14px;
+  transform:translateY(40px);transition:transform .28s ease}
+.modal-bg.show .modal{transform:translateY(0)}
+.modal-title{font-size:11px;letter-spacing:3px;color:#445;text-align:center}
+.modal-close{position:absolute;right:20px;top:20px;background:none;border:none;
+  color:#445;cursor:pointer;font-size:20px;padding:4px}
+
+/* ── HOME ── */
+.home-hero{text-align:center;padding:20px 0 8px}
+.home-logo{font-size:48px;font-weight:900;letter-spacing:-2px;line-height:1}
+.home-logo span{color:#00ff88}
+.home-tag{font-size:11px;color:#445;letter-spacing:2px;margin-top:6px}
+.home-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.home-card{background:rgba(255,255,255,.025);border:1px solid #141425;border-radius:12px;
+  padding:20px 12px;display:flex;flex-direction:column;align-items:center;gap:8px;
+  cursor:pointer;transition:all .18s}
+.home-card:active{border-color:#00ff88}
+.home-card-icon{font-size:32px}
+.home-card-title{font-size:12px;font-weight:700;color:#e8e8ff;letter-spacing:.5px}
+.home-card-sub{font-size:10px;color:#445;letter-spacing:.5px}
+
+/* ── LIBRARY ── */
+.lib-tabs{display:flex;gap:8px}
+.lib-tab{flex:1;padding:9px;background:transparent;border:1px solid #1a1a2e;border-radius:6px;
+  color:#445;font-family:inherit;font-size:11px;letter-spacing:1px;cursor:pointer;transition:all .18s}
+.lib-tab.active{border-color:#00ff88;color:#00ff88;background:rgba(0,255,136,.06)}
+.test-card{display:flex;align-items:center;gap:12px;padding:14px;
+  background:rgba(255,255,255,.025);border:1px solid #141425;border-radius:10px;
+  cursor:pointer;transition:all .18s}
+.test-card:active{border-color:#00ff88}
+.test-icon{font-size:28px;width:44px;text-align:center;flex-shrink:0}
+.test-info{flex:1;min-width:0}
+.test-title{font-size:14px;font-weight:700;color:#e8e8ff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.test-meta{font-size:10px;color:#445;letter-spacing:.5px;margin-top:3px}
+.test-mode{font-size:9px;padding:2px 7px;border-radius:3px;letter-spacing:1px;font-weight:700}
+.test-mode.quiz{background:rgba(0,255,136,.12);color:#00ff88}
+.test-mode.test{background:rgba(100,100,255,.12);color:#8888ff}
+
+/* ── QUIZ/TEST PLAY ── */
+.play-hud{display:flex;justify-content:space-between;align-items:center;padding:12px 14px;
+  background:rgba(255,255,255,.03);border:1px solid #111;border-radius:8px;flex-shrink:0}
+.hud-item{display:flex;flex-direction:column;align-items:center;gap:2px}
+.hud-lbl{font-size:8px;letter-spacing:2px;color:#445}
+.hud-val{font-size:20px;font-weight:700;color:#00ff88}
+.timer-wrap{position:relative;width:52px;height:52px}
+.timer-wrap svg{position:absolute;top:0;left:0;transform:rotate(-90deg)}
+.timer-num{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
+  font-size:14px;font-weight:700;color:#00ff88;transition:color .3s}
+.prog-bar{height:3px;background:#111;border-radius:2px;overflow:hidden;flex-shrink:0}
+.prog-fill{height:100%;background:#00ff88;border-radius:2px;transition:width .4s;width:0}
+.prog-text{font-size:10px;color:#334;letter-spacing:1px;text-align:right;flex-shrink:0}
+.q-card{background:rgba(255,255,255,.025);border:1px solid #141425;border-radius:12px;
+  padding:20px;flex:1;overflow-y:auto;display:flex;flex-direction:column;min-height:200px}
+.q-text{font-size:16px;line-height:1.6;margin-bottom:18px;color:#dde}
+.options{display:flex;flex-direction:column;gap:9px}
+.opt{display:flex;align-items:center;gap:12px;padding:12px 14px;
+  background:rgba(255,255,255,.04);border:1px solid #1a1a2e;border-radius:8px;
+  cursor:pointer;text-align:left;width:100%;font-family:inherit;color:#ccd;font-size:14px;transition:all .18s}
+.opt[disabled]{cursor:default}
+.opt-letter{font-weight:700;color:#445;min-width:16px;font-size:11px}
+.opt.correct{background:rgba(0,255,136,.12);border-color:#00ff88;color:#00ff88}
+.opt.wrong{background:rgba(255,68,102,.12);border-color:#ff4466;color:#ff4466}
+.opt.dim{opacity:.35}
+.expl{margin-top:14px;padding:11px 13px;background:rgba(255,204,0,.06);
+  border:1px solid rgba(255,204,0,.2);border-radius:8px;font-size:11px;color:#998;
+  line-height:1.6;display:flex;gap:8px;animation:fadeIn .3s ease}
+
+/* ── RESULT ── */
+.result-big{font-size:68px;font-weight:900;color:#00ff88;line-height:1;text-align:center}
+.result-pct{font-size:13px;color:#445;letter-spacing:2px;text-align:center}
+.result-stats{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px}
+.result-stat{background:rgba(255,255,255,.025);border:1px solid #141425;border-radius:8px;
+  padding:12px 8px;text-align:center}
+.rs-val{font-size:20px;font-weight:700;color:#e8e8ff}
+.rs-lbl{font-size:9px;color:#445;letter-spacing:1px;margin-top:3px}
+.result-bar-wrap{height:4px;background:#111;border-radius:2px;overflow:hidden}
+.result-bar{height:100%;border-radius:2px;transition:width 1s ease;width:0}
+.analysis-item{padding:10px 0;border-bottom:1px solid #0d0d1a;display:flex;gap:10px;align-items:flex-start}
+.ai-mark{width:20px;height:20px;border-radius:50%;display:flex;align-items:center;justify-content:center;
+  font-size:11px;flex-shrink:0;margin-top:2px}
+.ai-mark.ok{background:rgba(0,255,136,.15);color:#00ff88}
+.ai-mark.no{background:rgba(255,68,102,.15);color:#ff4466}
+.ai-mark.skip{background:rgba(100,100,100,.15);color:#556}
+.ai-q{font-size:12px;color:#778;flex:1}
+.ai-answer{font-size:11px;margin-top:3px}
+.ai-correct{color:#00ff88}
+.ai-wrong{color:#ff4466}
+
+/* ── LOADER ── */
+.loader{display:flex;flex-direction:column;align-items:center;gap:14px;padding:40px 0;width:100%}
+.dots{display:flex}
+.dot{width:8px;height:8px;border-radius:50%;background:#00ff88;margin:0 4px;animation:pulse 1s infinite}
+.dot:nth-child(2){animation-delay:.2s}
+.dot:nth-child(3){animation-delay:.4s}
+.loader-txt{font-size:11px;color:#334;letter-spacing:2px}
+
+/* ── PROFILE ── */
+.prof-header{background:rgba(255,255,255,.02);border:1px solid #141425;border-radius:14px;
+  padding:24px 16px;display:flex;flex-direction:column;align-items:center;gap:10px;position:relative;overflow:hidden}
+.prof-wallpaper{position:absolute;inset:0;background-size:cover;background-position:center;opacity:.15;z-index:0}
+.prof-content{position:relative;z-index:1;display:flex;flex-direction:column;align-items:center;gap:10px;width:100%}
+.prof-avatar{width:76px;height:76px;border-radius:50%;border:2.5px solid #00ff88;
+  background:#0d0d1a;display:flex;align-items:center;justify-content:center;font-size:34px;
+  overflow:hidden;cursor:pointer;flex-shrink:0}
+.prof-avatar img{width:100%;height:100%;object-fit:cover;border-radius:50%}
+.prof-name{font-size:18px;font-weight:700;color:#e8e8ff;letter-spacing:.5px}
+.prof-handle{font-size:11px;color:#445;letter-spacing:1px}
+.prof-bio{font-size:12px;color:#667;text-align:center;max-width:280px;line-height:1.5}
+.prof-badge{font-size:11px;color:#00ff88;letter-spacing:1px}
+.prof-stats-grid{display:grid;grid-template-columns:1fr 1fr;gap:9px}
+.prof-stat{background:rgba(255,255,255,.025);border:1px solid #141425;border-radius:9px;
+  padding:14px;display:flex;flex-direction:column;gap:3px}
+.ps-val{font-size:22px;font-weight:700;color:#00ff88}
+.ps-lbl{font-size:9px;letter-spacing:2px;color:#445}
+.history-item{display:flex;justify-content:space-between;align-items:center;
+  padding:10px 13px;background:rgba(255,255,255,.02);border:1px solid #141425;
+  border-radius:8px;margin-bottom:7px}
+.hi-left .hi-title{font-size:12px;color:#778}
+.hi-left .hi-mode{font-size:9px;color:#334;margin-top:2px}
+.hi-right .hi-score{font-size:14px;font-weight:700;color:#00ff88;text-align:right}
+.hi-right .hi-date{font-size:10px;color:#334;text-align:right;margin-top:2px}
+
+/* ── LEADERBOARD ── */
+.lb-item{display:flex;align-items:center;gap:11px;padding:11px 13px;
+  background:rgba(255,255,255,.02);border:1px solid #141425;border-radius:9px;margin-bottom:7px}
+.lb-item.me{border-color:rgba(0,255,136,.3);background:rgba(0,255,136,.04)}
+.lb-rank{font-size:14px;font-weight:700;color:#445;min-width:26px;text-align:center}
+.lb-rank.g{color:#ffd700}
+.lb-rank.s{color:#c0c0c0}
+.lb-rank.b{color:#cd7f32}
+.lb-av{width:34px;height:34px;border-radius:50%;border:1px solid #1a1a2e;
+  background:#0d0d1a;display:flex;align-items:center;justify-content:center;font-size:17px;overflow:hidden;flex-shrink:0}
+.lb-av img{width:100%;height:100%;object-fit:cover;border-radius:50%}
+.lb-info{flex:1;min-width:0}
+.lb-uname{font-size:13px;color:#e8e8ff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.lb-ugames{font-size:10px;color:#445;letter-spacing:.5px}
+.lb-score{font-size:15px;font-weight:700;color:#00ff88}
+.lb-tabs{display:flex;gap:7px}
+.lb-tab{flex:1;padding:8px;background:transparent;border:1px solid #1a1a2e;border-radius:6px;
+  color:#445;font-family:inherit;font-size:10px;letter-spacing:1px;cursor:pointer;transition:all .18s}
+.lb-tab.active{border-color:#00ff88;color:#00ff88;background:rgba(0,255,136,.06)}
+
+/* ── GAME (Realtime) ── */
+.game-status{display:flex;align-items:center;gap:8px;font-size:10px;color:#445;letter-spacing:1px}
+.status-dot{width:8px;height:8px;border-radius:50%;background:#334;flex-shrink:0}
+.status-dot.connected{background:#00ff88;box-shadow:0 0 6px #00ff88}
+.status-dot.waiting{background:#ffd60a;animation:pulse 1s infinite}
+.player-row{display:flex;align-items:center;justify-content:space-between;
+  padding:10px 13px;background:rgba(255,255,255,.02);border:1px solid #141425;border-radius:8px;margin-bottom:6px}
+.pr-name{font-size:13px;color:#e8e8ff}
+.pr-score{font-size:14px;font-weight:700;color:#00ff88}
+.pr-correct{font-size:10px;color:#445}
+.game-code{font-size:36px;font-weight:700;letter-spacing:8px;color:#00ff88;text-align:center;
+  background:rgba(0,255,136,.06);border:1px solid rgba(0,255,136,.2);border-radius:10px;padding:16px}
+.game-q-num{font-size:10px;color:#445;letter-spacing:2px;text-align:center}
+.game-timer-big{font-size:52px;font-weight:700;color:#00ff88;text-align:center;font-family:monospace}
+
+/* ── ADMIN ── */
+.admin-stat{background:rgba(255,255,255,.025);border:1px solid #141425;border-radius:9px;
+  padding:14px;display:flex;flex-direction:column;gap:4px}
+.as-val{font-size:26px;font-weight:700;color:#00ff88}
+.as-lbl{font-size:9px;color:#445;letter-spacing:2px}
+.admin-grid{display:grid;grid-template-columns:1fr 1fr;gap:9px}
+.admin-tabs{display:flex;gap:6px;flex-wrap:wrap}
+.admin-tab{padding:8px 14px;background:transparent;border:1px solid #1a1a2e;border-radius:6px;
+  color:#445;font-family:inherit;font-size:10px;letter-spacing:1px;cursor:pointer;transition:all .18s;white-space:nowrap}
+.admin-tab.active{border-color:#00ff88;color:#00ff88;background:rgba(0,255,136,.06)}
+.admin-user-row{display:flex;align-items:center;justify-content:space-between;
+  padding:10px 13px;background:rgba(255,255,255,.02);border:1px solid #141425;border-radius:8px;margin-bottom:7px}
+.aur-name{font-size:12px;color:#e8e8ff}
+.aur-meta{font-size:10px;color:#445;margin-top:2px}
+.aur-source{font-size:9px;padding:2px 6px;border-radius:3px;font-weight:700;letter-spacing:1px}
+.aur-source.tg{background:rgba(0,120,255,.15);color:#4488ff}
+.aur-source.web{background:rgba(0,255,136,.1);color:#00ff88}
+.test-edit-btn{display:flex;gap:6px}
+.icon-btn{width:32px;height:32px;border-radius:6px;border:1px solid #1a1a2e;
+  background:transparent;color:#445;cursor:pointer;font-size:14px;
+  display:flex;align-items:center;justify-content:center;transition:all .18s}
+.icon-btn:hover{border-color:#00ff88;color:#00ff88}
+.icon-btn.del:hover{border-color:#ff4466;color:#ff4466}
+
+/* ── SETTINGS ── */
+.settings-section{border-bottom:1px solid #0d0d1a;padding-bottom:14px;margin-bottom:14px}
+.settings-label{font-size:9px;letter-spacing:3px;color:#445;margin-bottom:10px}
+.emoji-grid{display:grid;grid-template-columns:repeat(8,1fr);gap:6px}
+.emoji-opt{font-size:22px;padding:4px;border-radius:6px;border:1px solid transparent;
+  cursor:pointer;text-align:center;transition:all .15s;background:none}
+.emoji-opt.selected{border-color:#00ff88;background:rgba(0,255,136,.08)}
+
+/* ── BUILT-IN GAMES ── */
+.game-tile{background:rgba(255,255,255,.025);border:1px solid #141425;border-radius:12px;
+  padding:20px;display:flex;flex-direction:column;align-items:center;gap:10px;
+  cursor:pointer;text-align:center;transition:all .18s}
+.game-tile:active{border-color:#00ff88}
+.game-tile-icon{font-size:40px}
+.game-tile-title{font-size:14px;font-weight:700;color:#e8e8ff}
+.game-tile-desc{font-size:11px;color:#445;line-height:1.5}
+
+/* ── REALTIME INDICATOR ── */
+.rt-indicator{position:fixed;top:8px;right:12px;z-index:50;
+  display:flex;align-items:center;gap:6px;font-size:9px;color:#445;letter-spacing:1px}
+.rt-dot{width:7px;height:7px;border-radius:50%;background:#334}
+.rt-dot.on{background:#00ff88;box-shadow:0 0 5px #00ff88}
+
+/* ── MISC ── */
+.section-title{font-size:10px;letter-spacing:3px;color:#445;margin-bottom:8px}
+.empty{text-align:center;color:#334;font-size:12px;padding:32px;letter-spacing:1px}
+.badge{font-size:9px;padding:2px 7px;border-radius:3px;letter-spacing:1px;font-weight:700}
+.badge-green{background:rgba(0,255,136,.12);color:#00ff88}
+.badge-blue{background:rgba(100,100,255,.12);color:#8888ff}
+.tag-row{display:flex;gap:6px;flex-wrap:wrap}
+.divider{height:1px;background:#0d0d1a;margin:4px 0}
+.toast{position:fixed;bottom:80px;left:50%;transform:translateX(-50%);
+  background:#1a1a2e;border:1px solid #00ff88;color:#00ff88;
+  padding:10px 20px;border-radius:8px;font-size:12px;letter-spacing:1px;
+  z-index:500;opacity:0;transition:opacity .3s;white-space:nowrap}
+.toast.show{opacity:1}
+.particle{position:fixed;width:8px;height:8px;border-radius:50%;pointer-events:none;z-index:999;animation:pop .9s forwards ease-out}
+
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
+@keyframes fadeIn{from{opacity:0}to{opacity:1}}
+@keyframes pop{0%{transform:translate(0,0)scale(1);opacity:1}100%{transform:translate(var(--dx),var(--dy))scale(0);opacity:0}}
+::-webkit-scrollbar{width:2px}
+::-webkit-scrollbar-thumb{background:#1a1a2e;border-radius:2px}
+</style>
+</head>
+<body>
+
+<!-- REALTIME INDICATOR -->
+<div class="rt-indicator" id="rtIndicator" style="display:none">
+  <div class="rt-dot" id="rtDot"></div><span id="rtLabel">offline</span>
+</div>
+
+<!-- DRAWER BG -->
+<div class="drawer-bg" id="drawerBg" onclick="closeDrawer()"></div>
+<div class="drawer" id="drawer">
+  <div class="drawer-user" id="drawerUser">
+    <div class="drawer-avatar" id="drawerAvatar">👤</div>
+    <div><p class="drawer-name" id="drawerName">—</p><p class="drawer-handle" id="drawerHandle"></p></div>
+  </div>
+  <div class="drawer-items">
+    <button class="drawer-item" onclick="drawerGo('profile')"><span class="di-icon">👤</span>Бейін</button>
+    <button class="drawer-item" onclick="drawerGo('leaderboard')"><span class="di-icon">🏆</span>Рейтинг</button>
+    <button class="drawer-item" onclick="drawerGo('game')"><span class="di-icon">🎮</span>Ойын</button>
+    <button class="drawer-item" onclick="drawerGo('test')"><span class="di-icon">📝</span>Тест</button>
+    <div class="drawer-sep"></div>
+    <button class="drawer-item" onclick="drawerGo('settings')"><span class="di-icon">⚙️</span>Баптаулар</button>
+    <button class="drawer-item" id="adminDrawerBtn" style="display:none;color:#ffcc00" onclick="drawerGo('admin')">
+      <span class="di-icon">🛡️</span>Әкімші
+    </button>
+  </div>
+</div>
+
+<!-- ── SCREENS ── -->
+
+<!-- AUTH -->
+<div id="screen-auth" class="screen active">
+  <div class="screen-inner" style="justify-content:center;min-height:100vh">
+    <div style="text-align:center;margin-bottom:24px">
+      <div style="font-size:48px;font-weight:900;color:#00ff88;letter-spacing:-2px"><span style="color:#e8e8ff">Q</span>Bit<span style="color:#e8e8ff;font-size:24px;letter-spacing:3px"> Quiz</span></div>
+      <p style="font-size:11px;color:#445;letter-spacing:2px;margin-top:6px">БІЛІМДІ БИТКЕ БӨЛІП, ЖЕҢІСКЕ ЖИНА</p>
+    </div>
+    <div id="authTabs" style="display:flex;gap:8px;margin-bottom:4px">
+      <button class="lb-tab active" onclick="switchAuthTab('login')" id="tabLogin">Кіру</button>
+      <button class="lb-tab" onclick="switchAuthTab('register')" id="tabRegister">Тіркелу</button>
+    </div>
+
+    <!-- LOGIN -->
+    <div id="authLogin" class="form-section">
+      <div class="inp-group"><span class="inp-label">ПАЙДАЛАНУШЫ АТЫ</span>
+        <input class="inp" id="loginUsername" type="text" placeholder="QuizMaster" autocomplete="username"></div>
+      <div class="inp-group"><span class="inp-label">ҚҰПИЯСӨЗ</span>
+        <input class="inp" id="loginPassword" type="password" placeholder="••••••••" autocomplete="current-password"></div>
+      <div class="inp-err" id="loginErr"></div>
+      <button class="btn-green" onclick="doLogin()">→ КІРУ</button>
+      <button class="btn-outline" style="font-size:11px" onclick="showForgot()">Құпиясөзді ұмыттыңыз ба?</button>
+    </div>
+
+    <!-- REGISTER -->
+    <div id="authRegister" class="form-section" style="display:none">
+      <div style="display:grid;grid-template-columns:1fr;gap:10px">
+        <div class="inp-group"><span class="inp-label">EMOJI-КЕЙІПКЕР (міндетті емес)</span>
+          <div class="emoji-grid" id="regEmojiGrid"></div></div>
+        <div class="inp-group"><span class="inp-label">ПАЙДАЛАНУШЫ АТЫ *</span>
+          <input class="inp" id="regUsername" type="text" placeholder="QuizMaster" maxlength="30"></div>
+        <div class="inp-group"><span class="inp-label">@ЛАҚАП АТЫ (міндетті емес)</span>
+          <input class="inp" id="regHandle" type="text" placeholder="@quizmaster" maxlength="30"></div>
+        <div class="inp-group"><span class="inp-label">АТЫ-ЖӨНІ</span>
+          <input class="inp" id="regFirstName" type="text" placeholder="Алибек" maxlength="50"></div>
+        <div class="inp-group"><span class="inp-label">ТУҒАН КҮН</span>
+          <input class="inp" id="regBirthdate" type="date"></div>
+        <div class="inp-group"><span class="inp-label">ӨЗІ ЖАЙЛЫ</span>
+          <textarea class="inp" id="regBio" placeholder="Бірнеше сөзбен өзіңіз жайлы..." maxlength="200" rows="3"></textarea></div>
+        <div class="inp-group"><span class="inp-label">ҚҰПИЯСӨЗ * (кем дегенде 6 таңба)</span>
+          <input class="inp" id="regPassword" type="password" placeholder="••••••••" autocomplete="new-password"></div>
+        <div class="inp-group"><span class="inp-label">ҚҰПИЯСӨЗДІ ҚАЙТАЛАҢЫЗ *</span>
+          <input class="inp" id="regPassword2" type="password" placeholder="••••••••" autocomplete="new-password"></div>
+      </div>
+      <div class="inp-err" id="regErr"></div>
+      <button class="btn-green" onclick="doRegister()">✓ ТІРКЕЛУ</button>
+    </div>
+
+    <!-- FORGOT -->
+    <div id="authForgot" class="form-section" style="display:none">
+      <p style="font-size:12px;color:#556;text-align:center;line-height:1.6">Пайдаланушы атыңызды енгізіңіз — қалпына келтіру сілтемесі жіберіледі</p>
+      <div class="inp-group"><span class="inp-label">ПАЙДАЛАНУШЫ АТЫ</span>
+        <input class="inp" id="forgotUsername" type="text"></div>
+      <div class="inp-err" id="forgotErr"></div>
+      <button class="btn-green" onclick="doForgot()">📩 ЖІБЕРУ</button>
+      <button class="btn-outline" onclick="showLogin()">← Артқа</button>
+    </div>
+  </div>
+</div>
+
+<!-- HOME -->
+<div id="screen-home" class="screen">
+  <div class="screen-inner">
+    <div class="topbar"><span class="topbar-logo">QBit</span>
+      <button class="btn-outline" style="width:auto;padding:8px 14px;font-size:11px" onclick="openDrawer()">☰ Мәзір</button>
+    </div>
+    <div class="home-hero">
+      <div class="home-logo"><span>Q</span>Bit Quiz</div>
+      <p class="home-tag">БІЛІМДІ БИТКЕ БӨЛІП, ЖЕҢІСКЕ ЖИНА</p>
+    </div>
+    <div class="home-grid">
+      <div class="home-card" onclick="navTo('quiz')">
+        <div class="home-card-icon">🎯</div>
+        <div class="home-card-title">Куиз</div>
+        <div class="home-card-sub">Жедел кері байланыс</div>
+      </div>
+      <div class="home-card" onclick="navTo('test')">
+        <div class="home-card-icon">📝</div>
+        <div class="home-card-title">Тест</div>
+        <div class="home-card-sub">Қорытынды бағалау</div>
+      </div>
+      <div class="home-card" onclick="navTo('game')">
+        <div class="home-card-icon">🎮</div>
+        <div class="home-card-title">Ойын</div>
+        <div class="home-card-sub">Жарыс форматы</div>
+      </div>
+      <div class="home-card" onclick="navTo('leaderboard')">
+        <div class="home-card-icon">🏆</div>
+        <div class="home-card-title">Рейтинг</div>
+        <div class="home-card-sub">Үздік ойыншылар</div>
+      </div>
+    </div>
+    <div class="card" id="homeUserCard" style="display:none">
+      <div style="display:flex;align-items:center;gap:12px">
+        <div class="prof-avatar" style="width:44px;height:44px;font-size:22px;border-width:1.5px" id="homeAvatar">👤</div>
+        <div><p style="font-size:14px;font-weight:700;color:#e8e8ff" id="homeUserName">—</p>
+          <p style="font-size:10px;color:#445;margin-top:2px" id="homeUserStats">0 ойын · 0 ұпай</p></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- LIBRARY -->
+<div id="screen-library" class="screen">
+  <div class="screen-inner">
+    <div class="topbar"><span class="topbar-logo">Кітапхана</span></div>
+    <div class="lib-tabs">
+      <button class="lib-tab active" onclick="libFilter('all')" id="libAll">Барлығы</button>
+      <button class="lib-tab" onclick="libFilter('quiz')" id="libQuiz">Куиз</button>
+      <button class="lib-tab" onclick="libFilter('test')" id="libTest">Тест</button>
+    </div>
+    <div id="libList"><div class="loader"><div class="dots"><div class="dot"></div><div class="dot"></div><div class="dot"></div></div></div></div>
+  </div>
+</div>
+
+<!-- QUIZ (play) -->
+<div id="screen-quiz" class="screen" style="padding-bottom:0">
+  <div style="width:100%;max-width:480px;padding:12px 16px 16px;display:flex;flex-direction:column;gap:10px;height:100%">
+    <div class="play-hud">
+      <div class="hud-item"><span class="hud-lbl">ҰПАЙ</span><span class="hud-val" id="qHudScore">0</span></div>
+      <div class="timer-wrap">
+        <svg width="52" height="52" viewBox="0 0 52 52">
+          <circle cx="26" cy="26" r="22" fill="none" stroke="#1a1a2e" stroke-width="4"/>
+          <circle id="timerArc" cx="26" cy="26" r="22" fill="none" stroke="#00ff88" stroke-width="4" stroke-linecap="round" stroke-dasharray="138.23 138.23"/>
+        </svg>
+        <div class="timer-num" id="timerNum">20</div>
+      </div>
+      <div class="hud-item"><span class="hud-lbl">🔥 СЕРИЯ</span><span class="hud-val" id="qHudStreak">0</span></div>
+    </div>
+    <div class="prog-bar"><div class="prog-fill" id="progFill"></div></div>
+    <p class="prog-text" id="progText">0/10 сұрақ</p>
+    <div class="q-card" id="qCard"></div>
+  </div>
+</div>
+
+<!-- TEST (play — no instant feedback) -->
+<div id="screen-test" class="screen" style="padding-bottom:0">
+  <div style="width:100%;max-width:480px;padding:12px 16px 16px;display:flex;flex-direction:column;gap:10px;height:100%">
+    <div class="play-hud">
+      <div class="hud-item"><span class="hud-lbl">СҰРАҚ</span><span class="hud-val" id="tHudQ">1</span></div>
+      <div class="timer-wrap">
+        <svg width="52" height="52" viewBox="0 0 52 52">
+          <circle cx="26" cy="26" r="22" fill="none" stroke="#1a1a2e" stroke-width="4"/>
+          <circle id="timerArcT" cx="26" cy="26" r="22" fill="none" stroke="#8888ff" stroke-width="4" stroke-linecap="round" stroke-dasharray="138.23 138.23"/>
+        </svg>
+        <div class="timer-num" id="timerNumT" style="color:#8888ff">30</div>
+      </div>
+      <div class="hud-item"><span class="hud-lbl">ЖАУАП</span><span class="hud-val" id="tHudAnswered">0</span></div>
+    </div>
+    <div class="prog-bar"><div class="prog-fill" id="tProgFill" style="background:#8888ff"></div></div>
+    <p class="prog-text" id="tProgText">0/10 сұрақ</p>
+    <div class="q-card" id="tCard"></div>
+    <button class="btn-green" id="tNextBtn" style="display:none" onclick="testNext()">Келесі →</button>
+    <button class="btn-green" id="tFinishBtn" style="display:none;background:#8888ff" onclick="testFinish()">✓ Аяқтау</button>
+  </div>
+</div>
+
+<!-- RESULT -->
+<div id="screen-result" class="screen">
+  <div class="screen-inner">
+    <div class="topbar"><span class="topbar-logo">Нәтиже</span></div>
+    <div class="card" style="text-align:center;gap:12px;display:flex;flex-direction:column">
+      <p id="resultRank" style="font-size:13px;letter-spacing:2px;color:#556"></p>
+      <div class="result-big" id="resultScore">0</div>
+      <p class="result-pct" id="resultPct">ҰПАЙ</p>
+      <div class="result-bar-wrap"><div class="result-bar" id="resultBar"></div></div>
+    </div>
+    <div class="result-stats" id="resultStats"></div>
+    <div id="resultAnalysis" style="display:none">
+      <p class="section-title">ТАЛДАУ</p>
+      <div id="resultAnalysisList"></div>
+    </div>
+    <button class="btn-green" id="resultReplay">🔄 Қайта ойна</button>
+    <button class="btn-outline" onclick="navTo('home')">← Басты бет</button>
+  </div>
+</div>
+
+<!-- GAME -->
+<div id="screen-game" class="screen">
+  <div class="screen-inner">
+    <div class="topbar"><span class="topbar-logo">Ойын</span><div class="game-status"><div class="status-dot" id="gStatusDot"></div><span id="gStatusLabel">—</span></div></div>
+
+    <!-- Lobby / Join -->
+    <div id="gameJoinView">
+      <p class="section-title">ОЙЫНҒА ҚОСЫЛУ</p>
+      <div class="inp-group" style="margin-bottom:10px"><span class="inp-label">КОД</span>
+        <input class="inp" id="gameCodeInp" type="text" maxlength="6" placeholder="ABC123" style="text-transform:uppercase;letter-spacing:4px;font-size:20px;text-align:center"></div>
+      <div class="inp-group" style="margin-bottom:10px"><span class="inp-label">ЛАҚАП АТЫ</span>
+        <input class="inp" id="gameNickInp" type="text" maxlength="20" placeholder="QuizHero"></div>
+      <button class="btn-green" onclick="joinGame()">→ ҚОСЫЛУ</button>
+    </div>
+
+    <!-- Lobby (after join) -->
+    <div id="gameLobbyView" style="display:none">
+      <div class="game-code" id="gameLobbyCode">ABC123</div>
+      <p style="text-align:center;font-size:11px;color:#445;letter-spacing:1px;margin:8px 0">Ойын басталуын күтіңіз…</p>
+      <p class="section-title">ҚАТЫСУШЫЛАР</p>
+      <div id="gameLobbyPlayers"></div>
+    </div>
+
+    <!-- Active question -->
+    <div id="gamePlayView" style="display:none">
+      <p class="game-q-num" id="gameQNum">Сұрақ 1/10</p>
+      <div class="game-timer-big" id="gameTimer">20</div>
+      <div class="q-card" id="gameQCard"></div>
+      <div id="gameScoreBoard" style="margin-top:10px"></div>
+    </div>
+
+    <!-- Finished -->
+    <div id="gameFinishView" style="display:none">
+      <p class="section-title" style="text-align:center;margin-bottom:12px">🏆 ОЙЫН АЯҚТАЛДЫ</p>
+      <div id="gameFinalBoard"></div>
+      <button class="btn-outline" style="margin-top:12px" onclick="resetGame()">← Шығу</button>
+    </div>
+
+    <div class="divider"></div>
+    <!-- Built-in games -->
+    <p class="section-title">АРНАЙЫ ОЙЫНДАР</p>
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px" id="builtinGames"></div>
+  </div>
+</div>
+
+<!-- LEADERBOARD -->
+<div id="screen-leaderboard" class="screen">
+  <div class="screen-inner">
+    <div class="topbar"><span class="topbar-logo">Рейтинг</span></div>
+    <div class="lb-tabs">
+      <button class="lb-tab active" data-period="all" onclick="lbSwitch('all')">Барлық</button>
+      <button class="lb-tab" data-period="week" onclick="lbSwitch('week')">Апта</button>
+      <button class="lb-tab" data-period="today" onclick="lbSwitch('today')">Бүгін</button>
+    </div>
+    <div id="lbList"><div class="loader"><div class="dots"><div class="dot"></div><div class="dot"></div><div class="dot"></div></div></div></div>
+  </div>
+</div>
+
+<!-- PROFILE -->
+<div id="screen-profile" class="screen">
+  <div class="screen-inner">
+    <div class="topbar"><span class="topbar-logo">Бейін</span>
+      <button class="icon-btn" onclick="navTo('settings')">⚙️</button></div>
+    <div class="prof-header">
+      <div class="prof-wallpaper" id="profWallpaper"></div>
+      <div class="prof-content">
+        <div class="prof-avatar" id="profAvatar">👤</div>
+        <p class="prof-name" id="profName">—</p>
+        <p class="prof-handle" id="profHandle"></p>
+        <p class="prof-bio" id="profBio" style="display:none"></p>
+        <p class="prof-badge" id="profBadge">🌱 Жаңадан</p>
+      </div>
+    </div>
+    <div class="prof-stats-grid">
+      <div class="prof-stat"><span class="ps-val" id="psGames">0</span><span class="ps-lbl">ОЙЫНДАР</span></div>
+      <div class="prof-stat"><span class="ps-val" id="psBest">0</span><span class="ps-lbl">ЕҢ ЖОҒАРЫ</span></div>
+      <div class="prof-stat"><span class="ps-val" id="psAvg">0%</span><span class="ps-lbl">ОРТАША %</span></div>
+      <div class="prof-stat"><span class="ps-val" id="psStreak">0</span><span class="ps-lbl">РЕКОРД 🔥</span></div>
+    </div>
+    <p class="section-title">СОҢҒЫ ОЙЫНДАР</p>
+    <div id="profHistList"><div class="loader"><div class="dots"><div class="dot"></div><div class="dot"></div><div class="dot"></div></div></div></div>
+  </div>
+</div>
+
+<!-- SETTINGS -->
+<div id="screen-settings" class="screen">
+  <div class="screen-inner">
+    <div class="topbar">
+      <button class="btn-outline" style="width:auto;padding:7px 12px;font-size:11px" onclick="navTo('profile')">←</button>
+      <span class="topbar-logo">Баптаулар</span>
+    </div>
+    <div class="settings-section">
+      <p class="settings-label">БЕЙІН СУРЕТІ</p>
+      <p style="font-size:11px;color:#445;margin-bottom:8px">EMOJI-КЕЙІПКЕР</p>
+      <div class="emoji-grid" id="settingsEmojiGrid"></div>
+    </div>
+    <div class="settings-section">
+      <p class="settings-label">БЕЙІН ДЕРЕКТЕРІ</p>
+      <div class="form-section">
+        <div class="inp-group"><span class="inp-label">ПАЙДАЛАНУШЫ АТЫ</span><input class="inp" id="sUsername" type="text"></div>
+        <div class="inp-group"><span class="inp-label">@ЛАҚАП АТЫ</span><input class="inp" id="sHandle" type="text"></div>
+        <div class="inp-group"><span class="inp-label">АТЫ-ЖӨНІ</span><input class="inp" id="sFirstName" type="text"></div>
+        <div class="inp-group"><span class="inp-label">ТУҒАН КҮН</span><input class="inp" id="sBirthdate" type="date"></div>
+        <div class="inp-group"><span class="inp-label">ӨЗІ ЖАЙЛЫ</span><textarea class="inp" id="sBio" rows="3"></textarea></div>
+        <div class="inp-err" id="sProfileErr"></div>
+        <button class="btn-green" onclick="saveProfile()">💾 САҚТАУ</button>
+      </div>
+    </div>
+    <div class="settings-section" id="sPwdSection">
+      <p class="settings-label">ҚҰПИЯСӨЗДІ ӨЗГЕРТУ</p>
+      <div class="form-section">
+        <div class="inp-group"><span class="inp-label">АҒЫМДАҒЫ ҚҰПИЯСӨЗ</span><input class="inp" id="sOldPwd" type="password"></div>
+        <div class="inp-group"><span class="inp-label">ЖАҢА ҚҰПИЯСӨЗ</span><input class="inp" id="sNewPwd" type="password"></div>
+        <div class="inp-group"><span class="inp-label">ҚАЙТАЛАҢЫЗ</span><input class="inp" id="sNewPwd2" type="password"></div>
+        <div class="inp-err" id="sPwdErr"></div>
+        <button class="btn-outline" onclick="changePwd()">🔒 ӨЗГЕРТУ</button>
+      </div>
+    </div>
+    <div class="settings-section">
+      <p class="settings-label">ТІРКЕЛГІ</p>
+      <button class="btn-outline" onclick="logout()">🚪 Шығу</button>
+      <div style="margin-top:8px"></div>
+      <button class="btn-red" onclick="confirmDeleteAccount()">🗑️ Тіркелгіні жою</button>
+    </div>
+  </div>
+</div>
+
+<!-- ADMIN -->
+<div id="screen-admin" class="screen">
+  <div class="screen-inner">
+    <div class="topbar"><span class="topbar-logo" style="color:#ffd60a">🛡️ Әкімші</span></div>
+    <div class="admin-tabs">
+      <button class="admin-tab active" onclick="adminTab('stats')" id="adminTabStats">📊 Статистика</button>
+      <button class="admin-tab" onclick="adminTab('tests')" id="adminTabTests">📚 Тесттер</button>
+      <button class="admin-tab" onclick="adminTab('users')" id="adminTabUsers">👥 Пайдаланушылар</button>
+      <button class="admin-tab" onclick="adminTab('recent')" id="adminTabRecent">🕐 Соңғы</button>
+    </div>
+    <div id="adminContent"></div>
+  </div>
+</div>
+
+<!-- BNAV -->
+<nav class="bnav" id="bnav">
+  <button class="bnav-btn active" data-s="home" onclick="navTo('home')"><span class="bnav-icon">🏠</span><span>Үй</span></button>
+  <button class="bnav-btn" data-s="library" onclick="navTo('library')"><span class="bnav-icon">📚</span><span>Кітапхана</span></button>
+  <button class="bnav-btn" data-s="quiz" onclick="pickTest('quiz')"><span class="bnav-icon">🎯</span><span>Куиз</span></button>
+  <button class="bnav-btn" onclick="openDrawer()"><span class="bnav-icon">☰</span><span>Мәзір</span></button>
+</nav>
+
+<!-- TOAST -->
+<div class="toast" id="toast"></div>
+
+<script>
+// ══════════════════════════════════════════════════════════
+const tg = window.Telegram?.WebApp;
+if(tg){tg.ready();tg.expand();}
+tg?.BackButton?.onClick(()=>{
+  closeDrawer();
+  if(['quiz','test','result','settings'].includes(activeScreen)) navTo('home');
+  else if(activeScreen!=='home') navTo('home');
+});
+
+// ── EMOJI LIST ────────────────────────────────────────────
+const EMOJIS = ['🐶','🐱','🦊','🐼','🐨','🦁','🐯','🐸','🦋','🌟','🔥','⚡','🎯','🏆','💎','🌈','🚀','🎮','🎵','🌙'];
+
+// ── STATE ─────────────────────────────────────────────────
+let currentUser = null;
+let authToken   = null;
+let activeScreen = 'auth';
+let playState   = {}; // quiz/test session
+let gameState   = {}; // realtime game
+let lbPeriod    = 'all';
+let libMode     = 'all';
+let adminSection= 'stats';
+let selectedEmoji = null;
+let realtimeSub = null;
+
+const CIRC = 2*Math.PI*22;
+
+// ── API HELPERS ───────────────────────────────────────────
+async function api(endpoint, action, payload={}, withAuth=true){
+  const headers = {'Content-Type':'application/json'};
+  if(withAuth && authToken) headers['Authorization']='Bearer '+authToken;
+  const r = await fetch(`/api/${endpoint}`,{
+    method:'POST', headers,
+    body: JSON.stringify(endpoint==='generate'?payload:{action,payload})
+  });
+  const j = await r.json();
+  if(!j.ok) throw new Error(j.error||'API error');
+  return j.data;
+}
+
+function authApi(action,payload){return api('auth',action,payload,false);}
+function dbApi(action,payload){return api('db',action,payload,true);}
+async function genApi(payload){
+  const h={'Content-Type':'application/json'};
+  if(authToken) h['Authorization']='Bearer '+authToken;
+  const r=await fetch('/api/generate',{method:'POST',headers:h,body:JSON.stringify(payload)});
+  const j=await r.json(); if(!j.ok) throw new Error(j.error); return j.data;
+}
+
+// ── INIT ──────────────────────────────────────────────────
+async function init(){
+  if(tg?.initData && tg.initData!==''){
+    // Telegram Mini App
+    try{
+      const res = await authApi('telegram_auth',{initData:tg.initData});
+      setSession(res); startApp();
+    }catch(e){ showToast('Telegram auth қатесі'); renderAuth(); }
+  } else {
+    const token = localStorage.getItem('qbit_token');
+    if(token){
+      authToken=token;
+      try{
+        const res = await authApi('verify_session',{token});
+        currentUser=res.user; startApp();
+      }catch(e){ localStorage.removeItem('qbit_token'); renderAuth(); }
+    } else { renderAuth(); }
+  }
+}
+
+function setSession({user,token}){
+  currentUser=user; authToken=token;
+  if(token) localStorage.setItem('qbit_token',token);
+}
+
+function startApp(){
+  document.getElementById('bnav').classList.add('show');
+  updateDrawer();
+  buildEmojiGrids();
+  navTo('home');
+}
+
+// ── AUTH UI ───────────────────────────────────────────────
+function renderAuth(){
+  showScreen('auth');
+  document.getElementById('bnav').classList.remove('show');
+  buildEmojiGrids();
+}
+
+function switchAuthTab(tab){
+  ['login','register','forgot'].forEach(t=>{
+    document.getElementById('auth'+t[0].toUpperCase()+t.slice(1)).style.display=t===tab?'flex':'none';
+  });
+  ['login','register'].forEach(t=>{
+    document.getElementById('tab'+t[0].toUpperCase()+t.slice(1))?.classList.toggle('active',t===tab);
+  });
+}
+function showLogin(){switchAuthTab('login');}
+function showForgot(){
+  ['authLogin','authRegister','authTabs'].forEach(id=>document.getElementById(id).style.display='none');
+  document.getElementById('authForgot').style.display='flex';
+}
+
+async function doLogin(){
+  const username=v('loginUsername'),password=v('loginPassword');
+  setErr('loginErr','');
+  try{
+    const res=await authApi('login',{username,password});
+    setSession(res); startApp();
+  }catch(e){
+    const msg={user_not_found:'Пайдаланушы табылмады',wrong_password:'Қате құпиясөз',fields_required:'Барлық өрістерді толтырыңыз'};
+    setErr('loginErr',msg[e.message]||e.message);
+  }
+}
+
+async function doRegister(){
+  setErr('regErr','');
+  const body={
+    username:v('regUsername'),handle:v('regHandle'),first_name:v('regFirstName'),
+    bio:v('regBio'),birthdate:v('regBirthdate'),
+    password:v('regPassword'),password2:v('regPassword2'),
+    avatar_emoji:selectedEmoji
+  };
+  try{
+    const res=await authApi('register',body);
+    setSession(res); startApp();
+  }catch(e){
+    const msg={username_required:'Пайдаланушы аты міндетті',password_too_short:'Кем дегенде 6 таңба',
+      passwords_mismatch:'Құпиясөздер сәйкес емес',username_taken:'Бұл аты алынған',handle_taken:'Бұл лақап алынған'};
+    setErr('regErr',msg[e.message]||e.message);
+  }
+}
+
+async function doForgot(){
+  setErr('forgotErr','');
+  try{
+    const res=await authApi('forgot_password',{username:v('forgotUsername')});
+    showToast('Жіберілді! (dev: '+res._dev_token?.slice(0,8)+'...)');
+    showLogin();
+  }catch(e){ setErr('forgotErr',e.message); }
+}
+
+// ── NAVIGATION ────────────────────────────────────────────
+const MAIN_SCREENS=['home','library','quiz','game','leaderboard','profile','settings','admin','test','result'];
+
+function showScreen(id){
+  MAIN_SCREENS.forEach(s=>{
+    document.getElementById('screen-'+s)?.classList.remove('active');
+  });
+  document.getElementById('screen-auth')?.classList.remove('active');
+  (document.getElementById('screen-'+id)||document.getElementById('screen-auth')).classList.add('active');
+  activeScreen=id;
+  const showBack=!['home','library','leaderboard','profile','game'].includes(id);
+  showBack?tg?.BackButton?.show():tg?.BackButton?.hide();
+  document.querySelectorAll('.bnav-btn').forEach(b=>b.classList.toggle('active',b.dataset.s===id));
+}
+
+function navTo(id){
+  showScreen(id);
+  if(id==='home') renderHome();
+  if(id==='library') loadLibrary();
+  if(id==='profile') loadProfile();
+  if(id==='leaderboard') loadLeaderboard(lbPeriod);
+  if(id==='settings') renderSettings();
+  if(id==='admin') { if(!currentUser?.is_admin) return; adminTab('stats'); }
+  if(id==='game') renderGame();
+}
+
+function openDrawer(){
+  document.getElementById('drawer').classList.add('open');
+  document.getElementById('drawerBg').classList.add('show');
+}
+function closeDrawer(){
+  document.getElementById('drawer').classList.remove('open');
+  document.getElementById('drawerBg').classList.remove('show');
+}
+function drawerGo(screen){ closeDrawer(); navTo(screen); }
+
+function updateDrawer(){
+  if(!currentUser) return;
+  const av=document.getElementById('drawerAvatar');
+  const emoji=currentUser.avatar_emoji;
+  if(currentUser.avatar_url) av.innerHTML=`<img src="${currentUser.avatar_url}" alt="">`;
+  else av.textContent=emoji||currentUser.username?.[0]?.toUpperCase()||'👤';
+  document.getElementById('drawerName').textContent=currentUser.first_name||currentUser.username;
+  document.getElementById('drawerHandle').textContent=currentUser.handle?'@'+currentUser.handle:'';
+  if(currentUser.is_admin) document.getElementById('adminDrawerBtn').style.display='flex';
+  if(currentUser.is_admin) {
+    // Add admin bnav btn if needed
+    const existing=document.querySelector('.bnav-btn[data-s="admin"]');
+    if(!existing){
+      const btn=document.createElement('button');
+      btn.className='bnav-btn'; btn.dataset.s='admin';
+      btn.innerHTML='<span class="bnav-icon" style="color:#ffd60a">🛡️</span><span>Әкімші</span>';
+      btn.onclick=()=>navTo('admin');
+      document.getElementById('bnav').appendChild(btn);
+    }
+  }
+}
+
+// ── HOME ──────────────────────────────────────────────────
+function renderHome(){
+  if(!currentUser) return;
+  const c=document.getElementById('homeUserCard');
+  const av=document.getElementById('homeAvatar');
+  c.style.display='flex';
+  av.textContent=currentUser.avatar_emoji||currentUser.username?.[0]?.toUpperCase()||'👤';
+  if(currentUser.avatar_url) av.innerHTML=`<img src="${currentUser.avatar_url}" alt="" style="width:100%;height:100%;object-fit:cover;border-radius:50%">`;
+  document.getElementById('homeUserName').textContent=currentUser.first_name||currentUser.username;
+  document.getElementById('homeUserStats').textContent=`${currentUser.total_games||0} ойын · ${currentUser.best_score||0} ұпай`;
+}
+
+// ── LIBRARY ───────────────────────────────────────────────
+async function loadLibrary(){
+  document.getElementById('libList').innerHTML=loader();
+  try{
+    const tests=await dbApi('get_tests',{mode:libMode==='all'?undefined:libMode});
+    renderLibList(tests);
+  }catch(e){ document.getElementById('libList').innerHTML=`<p class="empty">Жүктеу қатесі</p>`; }
+}
+
+function libFilter(mode){
+  libMode=mode;
+  ['all','quiz','test'].forEach(m=>{
+    document.getElementById('lib'+m[0].toUpperCase()+m.slice(1)).classList.toggle('active',m===mode);
+  });
+  loadLibrary();
+}
+
+function renderLibList(tests){
+  const el=document.getElementById('libList');
+  if(!tests?.length){ el.innerHTML=`<p class="empty">Тест жоқ</p>`; return; }
+  el.innerHTML=tests.map(t=>`
+    <div class="test-card" onclick="startPlay('${t.id}','${t.mode}')">
+      <div class="test-icon">${esc(t.cover_emoji||'📝')}</div>
+      <div class="test-info">
+        <p class="test-title">${esc(t.title)}</p>
+        <p class="test-meta">${esc(t.category||'')} · ${t.mode==='quiz'?'Куиз':'Тест'}</p>
+      </div>
+      <span class="test-mode ${t.mode}">${t.mode==='quiz'?'КУИЗ':'ТЕСТ'}</span>
+    </div>`).join('');
+}
+
+// ── PICK TEST THEN PLAY ────────────────────────────────────
+async function pickTest(mode){
+  try{
+    const tests=await dbApi('get_tests',{mode});
+    if(!tests?.length){showToast('Тест жоқ');return;}
+    // Simple picker modal
+    showPickModal(tests, mode);
+  }catch(e){showToast('Қате: '+e.message);}
+}
+
+function showPickModal(tests, mode){
+  const existing=document.getElementById('pickModal');
+  if(existing) existing.remove();
+  const bg=document.createElement('div');
+  bg.className='modal-bg show'; bg.id='pickModal';
+  bg.innerHTML=`<div class="modal">
+    <p class="modal-title">${mode==='quiz'?'КУИЗ':'ТЕСТ'} ТАҢДА</p>
+    <div style="max-height:60vh;overflow-y:auto;display:flex;flex-direction:column;gap:8px">
+      ${tests.map(t=>`<div class="test-card" onclick="startPlay('${t.id}','${t.mode}');document.getElementById('pickModal').remove()">
+        <div class="test-icon">${esc(t.cover_emoji||'📝')}</div>
+        <div class="test-info"><p class="test-title">${esc(t.title)}</p></div>
+      </div>`).join('')}
+    </div>
+    <button class="btn-outline" onclick="document.getElementById('pickModal').remove()">× Жабу</button>
+  </div>`;
+  document.body.appendChild(bg);
+}
+
+// ── PLAY (Quiz mode) ──────────────────────────────────────
+async function startPlay(testId, mode){
+  document.getElementById('pickModal')?.remove();
+  playState={testId,mode,idx:0,score:0,streak:0,bestStreak:0,total:0,answers:[],timerId:null,revealed:false,curQ:null};
+  try{
+    const {test,questions}=await dbApi('get_test',{test_id:testId});
+    playState.test=test; playState.questions=questions;
+    playState.total=questions.length;
+    if(mode==='quiz') startQuiz();
+    else startTest();
+  }catch(e){showToast('Тест жүктеу қатесі');}
+}
+
+// ── QUIZ ──────────────────────────────────────────────────
+function startQuiz(){
+  playState.idx=0;playState.score=0;playState.streak=0;playState.bestStreak=0;playState.answers=[];
+  updateQHUD();showScreen('quiz');renderQQuestion();
+}
+
+function renderQQuestion(){
+  const q=playState.questions[playState.idx];
+  if(!q){endPlay();return;}
+  playState.curQ=q;playState.revealed=false;
+  const el=document.getElementById('qCard');
+  el.innerHTML=`<p class="q-text">${esc(q.text)}</p><div class="options">${q.options.map((o,i)=>`
+    <button class="opt" id="qopt${i}" onclick="quizAnswer(${i})">
+      <span class="opt-letter">${['A','B','C','D'][i]}</span>
+      <span class="opt-text">${esc(o)}</span>
+    </button>`).join('')}</div><div id="qExpl"></div>`;
+  startQTimer(q.time_limit||20);
+}
+
+function quizAnswer(idx){
+  if(playState.revealed)return;
+  stopQTimer();playState.revealed=true;
+  const q=playState.curQ;
+  const ok=idx===q.correct;
+  const timeTaken=(q.time_limit||20)*1000-playState.timeLeftMs;
+  const pts=ok?Math.max(1,Math.round((playState.timeLeft/(q.time_limit||20))*10)):0;
+  if(ok){playState.score+=pts;playState.streak++;playState.bestStreak=Math.max(playState.bestStreak,playState.streak);}
+  else playState.streak=0;
+  playState.answers.push({qid:q.id,answer:idx,correct:q.correct,ok,time:timeTaken});
+  markQ(idx,q.correct);if(q.explanation){const x=document.getElementById('qExpl');if(x)x.innerHTML=`<div class="expl">💡 ${esc(q.explanation)}</div>`;}
+  spawn(ok);updateQHUD();tg?.HapticFeedback?.notificationOccurred(ok?'success':'error');
+  setTimeout(()=>{playState.idx++;renderQQuestion();},1600);
+}
+
+function quizTimeout(){
+  if(playState.revealed)return;
+  playState.revealed=true;playState.streak=0;
+  playState.answers.push({qid:playState.curQ.id,answer:null,correct:playState.curQ.correct,ok:false,time:(playState.curQ.time_limit||20)*1000});
+  markQ(-1,playState.curQ.correct);updateQHUD();
+  setTimeout(()=>{playState.idx++;renderQQuestion();},1800);
+}
+
+function markQ(chosen,correct){
+  for(let i=0;i<4;i++){const b=document.getElementById('qopt'+i);if(!b)continue;b.disabled=true;
+    if(i===correct)b.classList.add('correct');else if(i===chosen&&i!==correct)b.classList.add('wrong');else b.classList.add('dim');}
+}
+
+function updateQHUD(){
+  document.getElementById('qHudScore').textContent=playState.score;
+  document.getElementById('qHudStreak').textContent=playState.streak;
+  const pct=(playState.idx/playState.total)*100;
+  document.getElementById('progFill').style.width=pct+'%';
+  document.getElementById('progText').textContent=`${playState.idx}/${playState.total} сұрақ`;
+}
+
+// ── TEST (no instant feedback) ────────────────────────────
+function startTest(){
+  playState.idx=0;playState.answers=[];playState.userAnswers={};
+  renderTestQ();showScreen('test');
+}
+
+function renderTestQ(){
+  const q=playState.questions[playState.idx];
+  if(!q)return;
+  playState.curQ=q;
+  document.getElementById('tHudQ').textContent=playState.idx+1;
+  document.getElementById('tHudAnswered').textContent=Object.keys(playState.userAnswers).length;
+  document.getElementById('tProgFill').style.width=`${(playState.idx/playState.total)*100}%`;
+  document.getElementById('tProgText').textContent=`${playState.idx+1}/${playState.total} сұрақ`;
+  const el=document.getElementById('tCard');
+  el.innerHTML=`<p class="q-text">${esc(q.text)}</p><div class="options">${q.options.map((o,i)=>{
+    const sel=playState.userAnswers[playState.idx]===i;
+    return `<button class="opt${sel?' correct':''}" id="topt${i}" onclick="testSelect(${i})" style="${sel?'border-color:#8888ff;background:rgba(100,100,255,.12);color:#8888ff':''}">
+      <span class="opt-letter">${['A','B','C','D'][i]}</span><span class="opt-text">${esc(o)}</span>
+    </button>`}).join('')}</div>`;
+  document.getElementById('tNextBtn').style.display=playState.idx<playState.total-1?'flex':'none';
+  document.getElementById('tFinishBtn').style.display=playState.idx===playState.total-1?'flex':'none';
+  startTTimer(q.time_limit||30);
+}
+
+function testSelect(idx){
+  playState.userAnswers[playState.idx]=idx;
+  for(let i=0;i<4;i++){const b=document.getElementById('topt'+i);if(!b)continue;
+    b.className='opt'; b.style.cssText='';
+    if(i===idx){b.style.cssText='border-color:#8888ff;background:rgba(100,100,255,.12);color:#8888ff';}}
+  document.getElementById('tHudAnswered').textContent=Object.keys(playState.userAnswers).length;
+}
+function testNext(){stopTTimer();playState.idx++;renderTestQ();}
+function testFinish(){
+  stopTTimer();
+  // Calculate results
+  let score=0,streak=0,bestStreak=0,cur=0,totalTime=0;
+  const answers=playState.questions.map((q,i)=>{
+    const ua=playState.userAnswers[i];
+    const ok=ua===q.correct;
+    if(ok){score+=10;cur++;bestStreak=Math.max(bestStreak,cur);}else cur=0;
+    return {qid:q.id,answer:ua??null,correct:q.correct,ok,time:0};
+  });
+  playState.score=score;playState.bestStreak=bestStreak;playState.answers=answers;
+  endPlay();
+}
+
+// ── TIMERS ────────────────────────────────────────────────
+function startQTimer(sec){
+  stopQTimer();playState.timeLeft=sec;playState.timeLeftMs=sec*1000;renderQTimer();
+  playState.timerId=setInterval(()=>{playState.timeLeft--;playState.timeLeftMs-=1000;renderQTimer();
+    if(playState.timeLeft<=0){stopQTimer();quizTimeout();}},1000);
+}
+function stopQTimer(){clearInterval(playState.timerId);playState.timerId=null;}
+function renderQTimer(){
+  const tl=playState.timeLeft,tot=playState.curQ?.time_limit||20;
+  const color=tl>tot*.5?'#00ff88':tl>tot*.25?'#ffcc00':'#ff4466';
+  const n=document.getElementById('timerNum'),a=document.getElementById('timerArc');
+  if(n){n.textContent=tl;n.style.color=color;}
+  if(a){a.style.strokeDasharray=`${(tl/tot)*CIRC} ${CIRC}`;a.style.stroke=color;}
+}
+
+function startTTimer(sec){
+  stopTTimer();playState.tTimeLeft=sec;renderTTimer();
+  playState.tTimerId=setInterval(()=>{playState.tTimeLeft--;renderTTimer();
+    if(playState.tTimeLeft<=0){stopTTimer();testNext();}},1000);
+}
+function stopTTimer(){clearInterval(playState.tTimerId);playState.tTimerId=null;}
+function renderTTimer(){
+  const tl=playState.tTimeLeft||0;
+  const n=document.getElementById('timerNumT'),a=document.getElementById('timerArcT');
+  if(n) n.textContent=tl;
+  if(a) a.style.strokeDasharray=`${(tl/30)*CIRC} ${CIRC}`;
+}
+
+// ── END PLAY + RESULT ─────────────────────────────────────
+async function endPlay(){
+  stopQTimer();stopTTimer();
+  const pct=Math.round((playState.score/(playState.total*10))*100);
+  const rank=pct>=80?'🏆 Чемпион':pct>=60?'⭐ Тәжірибелі':pct>=40?'📈 Дамушы':'🌱 Жаңадан';
+  showScreen('result');
+  document.getElementById('resultRank').textContent=rank;
+  document.getElementById('resultScore').textContent=playState.score;
+  document.getElementById('resultPct').textContent=pct+'% дұрыс';
+  const bar=document.getElementById('resultBar');
+  bar.style.width='0';bar.style.background=pct>=60?'#00ff88':'#ffcc00';
+  setTimeout(()=>bar.style.width=pct+'%',100);
+  document.getElementById('resultStats').innerHTML=`
+    <div class="result-stat"><div class="rs-val">${playState.bestStreak}</div><div class="rs-lbl">🔥 Серия</div></div>
+    <div class="result-stat"><div class="rs-val">${pct}%</div><div class="rs-lbl">Нәтиже</div></div>
+    <div class="result-stat"><div class="rs-val">${playState.total}</div><div class="rs-lbl">Сұрақ</div></div>`;
+  // Analysis
+  if(playState.mode==='test'){
+    document.getElementById('resultAnalysis').style.display='block';
+    document.getElementById('resultAnalysisList').innerHTML=playState.answers.map((a,i)=>{
+      const q=playState.questions[i];
+      const mark=a.answer===null?'skip':a.ok?'ok':'no';
+      return `<div class="analysis-item">
+        <div class="ai-mark ${mark}">${mark==='ok'?'✓':mark==='no'?'✗':'—'}</div>
+        <div><p class="ai-q">${esc(q.text)}</p>
+        ${a.ok?`<p class="ai-answer ai-correct">✓ ${esc(q.options[q.correct])}</p>`:`
+          ${a.answer!==null?`<p class="ai-answer ai-wrong">Сіз: ${esc(q.options[a.answer])}</p>`:''}
+          <p class="ai-answer ai-correct">Дұрыс: ${esc(q.options[q.correct])}</p>
+          ${q.explanation?`<p class="ai-answer" style="color:#667">💡 ${esc(q.explanation)}</p>`:''}`}
+        </div></div>`;}).join('');
+  }
+  document.getElementById('resultReplay').onclick=()=>startPlay(playState.testId,playState.mode);
+  // Save
+  try{
+    await dbApi('save_record',{
+      test_id:playState.testId,mode:playState.mode,
+      score:playState.score,pct,best_streak:playState.bestStreak,
+      avg_time_ms:0,answers:playState.answers
+    });
+    if(currentUser){currentUser.total_games=(currentUser.total_games||0)+1;currentUser.best_score=Math.max(currentUser.best_score||0,playState.score);}
+    showToast('Нәтиже сақталды ✓');
+  }catch(e){console.warn('save record',e);}
+}
+
+// ── PROFILE ───────────────────────────────────────────────
+async function loadProfile(){
+  if(!currentUser)return;
+  const av=document.getElementById('profAvatar');
+  av.textContent=currentUser.avatar_emoji||currentUser.username?.[0]?.toUpperCase()||'👤';
+  if(currentUser.avatar_url) av.innerHTML=`<img src="${currentUser.avatar_url}" alt="">`;
+  document.getElementById('profName').textContent=currentUser.first_name||currentUser.username;
+  document.getElementById('profHandle').textContent=currentUser.handle?'@'+currentUser.handle:'';
+  const bio=document.getElementById('profBio');
+  if(currentUser.bio){bio.textContent=currentUser.bio;bio.style.display='block';}
+  const avg=currentUser.total_games>0?Math.round((currentUser.total_score||0)/(currentUser.total_games*10*(10)))+'%':'0%';
+  const badge=currentUser.best_score>=80?'🏆 Чемпион':currentUser.best_score>=60?'⭐ Тәжірибелі':currentUser.best_score>=40?'📈 Дамушы':'🌱 Жаңадан';
+  document.getElementById('profBadge').textContent=badge;
+  document.getElementById('psGames').textContent=currentUser.total_games||0;
+  document.getElementById('psBest').textContent=currentUser.best_score||0;
+  document.getElementById('psAvg').textContent=avg;
+  document.getElementById('psStreak').textContent=currentUser.best_streak||0;
+  if(currentUser.wallpaper_url){
+    document.getElementById('profWallpaper').style.backgroundImage=`url(${currentUser.wallpaper_url})`;
+  }
+  // History
+  try{
+    const {records}=await dbApi('get_profile',{user_id:currentUser.id});
+    const el=document.getElementById('profHistList');
+    if(!records?.length){el.innerHTML=`<p class="empty">Тарих жоқ</p>`;return;}
+    el.innerHTML=records.map(r=>{
+      const d=new Date(r.played_at);
+      const ds=`${d.getDate()}.${String(d.getMonth()+1).padStart(2,'0')} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
+      return `<div class="history-item">
+        <div class="hi-left"><p class="hi-title">${r.mode==='quiz'?'🎯 Куиз':'📝 Тест'}</p><p class="hi-mode">${ds}</p></div>
+        <div class="hi-right"><p class="hi-score">${r.score} ұпай · ${r.pct}%</p></div>
+      </div>`;}).join('');
+  }catch(e){document.getElementById('profHistList').innerHTML=`<p class="empty">Қате</p>`;}
+}
+
+// ── LEADERBOARD ───────────────────────────────────────────
+async function loadLeaderboard(period){
+  lbPeriod=period;
+  document.querySelectorAll('.lb-tab').forEach(t=>t.classList.toggle('active',t.dataset.period===period));
+  document.getElementById('lbList').innerHTML=loader();
+  try{
+    const rows=await dbApi('get_leaderboard',{period,limit:50});
+    const el=document.getElementById('lbList');
+    if(!rows?.length){el.innerHTML=`<p class="empty">Деректер жоқ</p>`;return;}
+    const medals=['🥇','🥈','🥉'];const rc=['g','s','b'];
+    el.innerHTML=rows.map((r,i)=>{
+      const isMe=r.id===currentUser?.id;
+      const av=r.avatar?`<img src="${r.avatar}" alt="">`:(r.avatar_emoji||r.name?.[0]||'?');
+      return `<div class="lb-item${isMe?' me':''}">
+        <span class="lb-rank ${rc[i]||''}">${i<3?medals[i]:i+1}</span>
+        <div class="lb-av">${av}</div>
+        <div class="lb-info"><p class="lb-uname${isMe?' me-label':''}">${esc(r.name)}${isMe?' (сен)':''}</p>
+          <p class="lb-ugames">${r.games} ойын</p></div>
+        <span class="lb-score">${r.score}</span>
+      </div>`;}).join('');
+  }catch(e){document.getElementById('lbList').innerHTML=`<p class="empty">Жүктеу қатесі</p>`;}
+}
+
+function lbSwitch(period){loadLeaderboard(period);}
+
+// ── SETTINGS ──────────────────────────────────────────────
+function renderSettings(){
+  if(!currentUser)return;
+  document.getElementById('sUsername').value=currentUser.username||'';
+  document.getElementById('sHandle').value=currentUser.handle?'@'+currentUser.handle:'';
+  document.getElementById('sFirstName').value=currentUser.first_name||'';
+  document.getElementById('sBirthdate').value=currentUser.birthdate||'';
+  document.getElementById('sBio').value=currentUser.bio||'';
+  if(currentUser.source==='telegram') document.getElementById('sPwdSection').style.display='none';
+  buildEmojiGrids();
+}
+
+async function saveProfile(){
+  setErr('sProfileErr','');
+  const body={
+    username:v('sUsername'),handle:v('sHandle'),first_name:v('sFirstName'),
+    birthdate:v('sBirthdate'),bio:v('sBio'),avatar_emoji:selectedEmoji||currentUser.avatar_emoji
+  };
+  try{
+    const u=await dbApi('update_profile',body);
+    currentUser={...currentUser,...u};updateDrawer();showToast('Сақталды ✓');
+  }catch(e){setErr('sProfileErr',e.message);}
+}
+
+async function changePwd(){
+  setErr('sPwdErr','');
+  const body={password:v('sOldPwd'),password_new:v('sNewPwd'),password_new2:v('sNewPwd2')};
+  try{
+    await dbApi('update_profile',body);
+    showToast('Құпиясөз өзгертілді ✓');
+    ['sOldPwd','sNewPwd','sNewPwd2'].forEach(id=>document.getElementById(id).value='');
+  }catch(e){
+    const msg={wrong_password:'Ағымдағы құпиясөз қате',passwords_mismatch:'Жаңа құпиясөздер сәйкес емес'};
+    setErr('sPwdErr',msg[e.message]||e.message);
+  }
+}
+
+function logout(){
+  currentUser=null;authToken=null;
+  localStorage.removeItem('qbit_token');
+  document.getElementById('bnav').classList.remove('show');
+  renderAuth();
+}
+
+function confirmDeleteAccount(){
+  if(!confirm('Тіркелгіңіздің барлық деректері жойылады. Жалғастырасыз ба?')) return;
+  deleteAccount();
+}
+
+async function deleteAccount(){
+  try{
+    await dbApi('delete_account',{});
+    logout();showToast('Тіркелгі жойылды');
+  }catch(e){showToast('Қате: '+e.message);}
+}
+
+// ── GAME (Realtime) ───────────────────────────────────────
+function renderGame(){
+  document.getElementById('gameJoinView').style.display='block';
+  document.getElementById('gameLobbyView').style.display='none';
+  document.getElementById('gamePlayView').style.display='none';
+  document.getElementById('gameFinishView').style.display='none';
+  // Built-in games
+  const bg=document.getElementById('builtinGames');
+  bg.innerHTML=[
+    {icon:'🗺️',title:'Астаналар',desc:'Елдің астанасын тап'},
+    {icon:'🏳️',title:'Туулар',desc:'Елдің туын тап'},
+    {icon:'🖼️',title:'4 сурет, 1 сөз',desc:'Суреттен сөзді тап'},
+  ].map(g=>`<div class="game-tile" onclick="showToast('Жақында...')">
+    <div class="game-tile-icon">${g.icon}</div>
+    <div class="game-tile-title">${g.title}</div>
+    <div class="game-tile-desc">${g.desc}</div>
+  </div>`).join('');
+}
+
+async function joinGame(){
+  const code=v('gameCodeInp').toUpperCase();
+  const nickname=v('gameNickInp')||currentUser?.username||'Player';
+  if(!code||code.length!==6){showToast('6 таңбалы код енгізіңіз');return;}
+  try{
+    const {session,player}=await dbApi('join_session',{code,nickname});
+    gameState={session,player,code};
+    subscribeToGame(session.id);
+    showGameLobby(session,player);
+  }catch(e){showToast(e.message==='session_not_found'?'Ойын табылмады':e.message);}
+}
+
+function showGameLobby(session,player){
+  document.getElementById('gameJoinView').style.display='none';
+  document.getElementById('gameLobbyView').style.display='block';
+  document.getElementById('gameLobbyCode').textContent=session.code;
+}
+
+function subscribeToGame(sessionId){
+  // Supabase Realtime via polling (fallback — full realtime needs client SDK)
+  document.getElementById('rtIndicator').style.display='flex';
+  document.getElementById('rtDot').classList.add('connected');
+  document.getElementById('rtLabel').textContent='онлайн';
+  gameState.pollId=setInterval(()=>pollSession(sessionId),2000);
+}
+
+async function pollSession(sessionId){
+  try{
+    const data=await dbApi('get_session',{session_id:sessionId});
+    gameState.session=data.session;
+    gameState.players=data.players;
+    // Update lobby players
+    if(data.session.status==='lobby'){
+      const el=document.getElementById('gameLobbyPlayers');
+      if(el) el.innerHTML=data.players.map(p=>`
+        <div class="player-row"><p class="pr-name">${esc(p.nickname)}</p><p class="pr-correct">0 ұпай</p></div>`).join('');
+    } else if(data.session.status==='active'){
+      showGamePlay(data);
+    } else if(data.session.status==='finished'){
+      showGameFinish(data.players);
+    }
+  }catch(e){console.warn('poll',e);}
+}
+
+function showGamePlay(data){
+  document.getElementById('gameLobbyView').style.display='none';
+  document.getElementById('gamePlayView').style.display='block';
+  const q=data.questions[data.session.current_q];
+  if(!q)return;
+  document.getElementById('gameQNum').textContent=`Сұрақ ${data.session.current_q+1}/${data.questions.length}`;
+  document.getElementById('gameQCard').innerHTML=`<p class="q-text">${esc(q.text)}</p>
+    <div class="options">${q.options.map((o,i)=>`
+      <button class="opt" onclick="submitGameAnswer(${q.id?`'${q.id}'`:i},${i})">
+        <span class="opt-letter">${['A','B','C','D'][i]}</span><span class="opt-text">${esc(o)}</span>
+      </button>`).join('')}</div>`;
+  // Scoreboard
+  document.getElementById('gameScoreBoard').innerHTML=`<p class="section-title">РЕЙТИНГ</p>`+
+    (data.players||[]).sort((a,b)=>b.score-a.score).map(p=>`
+      <div class="player-row"><p class="pr-name">${esc(p.nickname)}</p><p class="pr-score">${p.score}</p></div>`).join('');
+}
+
+async function submitGameAnswer(questionId,idx){
+  if(!gameState.player)return;
+  document.querySelectorAll('#gameQCard .opt').forEach(b=>b.disabled=true);
+  try{
+    const res=await dbApi('submit_answer',{
+      session_id:gameState.session.id,
+      player_id:gameState.player.id,
+      question_id:questionId,
+      answer:idx,time_taken:3000
+    });
+    if(res.is_correct)showToast('✓ Дұрыс! +'+res.points+' ұпай');
+    else showToast('✗ Қате');
+  }catch(e){console.warn('answer',e);}
+}
+
+function showGameFinish(players){
+  clearInterval(gameState.pollId);
+  document.getElementById('rtDot').classList.remove('connected');
+  document.getElementById('gamePlayView').style.display='none';
+  document.getElementById('gameFinishView').style.display='block';
+  const sorted=(players||[]).sort((a,b)=>b.score-a.score);
+  document.getElementById('gameFinalBoard').innerHTML=sorted.map((p,i)=>`
+    <div class="player-row">
+      <p class="pr-name">${['🥇','🥈','🥉'][i]||i+1} ${esc(p.nickname)}</p>
+      <p class="pr-score">${p.score}</p>
+    </div>`).join('');
+}
+
+function resetGame(){clearInterval(gameState.pollId);gameState={};renderGame();}
+
+// ── ADMIN ─────────────────────────────────────────────────
+async function adminTab(tab){
+  adminSection=tab;
+  document.querySelectorAll('.admin-tab').forEach(t=>t.classList.toggle('active',t.id==='adminTab'+tab[0].toUpperCase()+tab.slice(1)));
+  const el=document.getElementById('adminContent');
+  el.innerHTML=loader();
+  try{
+    if(tab==='stats') await renderAdminStats(el);
+    else if(tab==='tests') await renderAdminTests(el);
+    else if(tab==='users') await renderAdminUsers(el);
+    else if(tab==='recent') await renderAdminRecent(el);
+  }catch(e){el.innerHTML=`<p class="empty">Қате: ${e.message}</p>`;}
+}
+
+async function renderAdminStats(el){
+  const s=await dbApi('admin_stats',{});
+  el.innerHTML=`<div class="admin-grid">
+    <div class="admin-stat"><div class="as-val">${s.total_users}</div><div class="as-lbl">ПАЙДАЛАНУШЫЛАР</div></div>
+    <div class="admin-stat"><div class="as-val">${s.total_games}</div><div class="as-lbl">ОЙЫНДАР</div></div>
+    <div class="admin-stat"><div class="as-val">${s.total_sessions}</div><div class="as-lbl">ЖАРЫСТАР</div></div>
+    <div class="admin-stat"><div class="as-val">${s.active_week}</div><div class="as-lbl">АПТАЛЫҚ БЕЛСЕНДІ</div></div>
+  </div>`;
+}
+
+async function renderAdminTests(el){
+  const tests=await dbApi('admin_tests',{});
+  el.innerHTML=`<button class="btn-green" style="margin-bottom:12px" onclick="adminCreateTestModal()">+ ТЕСТ ЖАС АУ</button>`+
+    (tests?.length?tests.map(t=>`
+      <div class="test-card" style="margin-bottom:8px">
+        <div class="test-icon">${esc(t.cover_emoji||'📝')}</div>
+        <div class="test-info"><p class="test-title">${esc(t.title)}</p>
+          <p class="test-meta">${t.mode} · ${new Date(t.created_at).toLocaleDateString()}</p></div>
+        <div class="test-edit-btn">
+          <button class="icon-btn" onclick="adminEditTest('${t.id}')">✏️</button>
+          <button class="icon-btn del" onclick="adminDeleteTest('${t.id}')">🗑️</button>
+        </div>
+      </div>`).join(''):`<p class="empty">Тест жоқ</p>`);
+}
+
+async function renderAdminUsers(el){
+  const users=await dbApi('admin_users',{});
+  el.innerHTML=users?.length?users.map(u=>`
+    <div class="admin-user-row">
+      <div><p class="aur-name">${esc(u.first_name||u.username)}</p>
+        <p class="aur-meta">@${esc(u.username)} · ${u.total_games} ойын · ${u.best_score} ұпай</p></div>
+      <span class="aur-source ${u.source}">${u.source==='telegram'?'TG':'WEB'}</span>
+    </div>`).join(''):`<p class="empty">Пайдаланушы жоқ</p>`;
+}
+
+async function renderAdminRecent(el){
+  const records=await dbApi('admin_recent',{});
+  el.innerHTML=records?.length?records.map(r=>`
+    <div class="history-item" style="margin-bottom:7px">
+      <div class="hi-left"><p class="hi-title">${esc(r.user?.username||'?')}</p>
+        <p class="hi-mode">${esc(r.test?.title||r.mode||'?')}</p></div>
+      <div class="hi-right"><p class="hi-score">${r.score} · ${r.pct}%</p>
+        <p class="hi-date">${new Date(r.played_at).toLocaleDateString()}</p></div>
+    </div>`).join(''):`<p class="empty">Жазба жоқ</p>`;
+}
+
+function adminCreateTestModal(){
+  const bg=document.createElement('div');bg.className='modal-bg show';bg.id='adminTestModal';
+  bg.innerHTML=`<div class="modal" style="max-height:90vh;overflow-y:auto">
+    <p class="modal-title">ТЕСТ ЖАСАУ</p>
+    <div class="form-section">
+      <div class="inp-group"><span class="inp-label">ТАҚЫРЫП</span><input class="inp" id="atTitle" placeholder="Математика негіздері"></div>
+      <div class="inp-group"><span class="inp-label">СИПАТТАМА</span><textarea class="inp" id="atDesc" rows="2"></textarea></div>
+      <div class="inp-group"><span class="inp-label">КАТЕГОРИЯ</span><input class="inp" id="atCategory" placeholder="Ғылым"></div>
+      <div class="inp-group"><span class="inp-label">РЕЖИМ</span>
+        <select class="inp" id="atMode"><option value="quiz">Куиз</option><option value="test">Тест</option></select></div>
+      <div class="inp-group"><span class="inp-label">EMOJI</span><input class="inp" id="atEmoji" value="📝" style="font-size:22px"></div>
+      <div class="divider"></div>
+      <p class="inp-label" style="margin-bottom:8px">AI АРҚЫЛЫ СҰРАҚ ЖАСАУ</p>
+      <div class="inp-group"><span class="inp-label">ТАҚЫРЫП (AI)</span><input class="inp" id="atAiTopic" placeholder="Қазақстан тарихы"></div>
+      <div class="inp-group"><span class="inp-label">СҰРАҚ САНЫ</span><input class="inp" id="atAiCount" type="number" value="5" min="1" max="20"></div>
+      <div class="inp-group"><span class="inp-label">НЕМЕСЕ МӘТІН</span><textarea class="inp" id="atAiText" rows="3" placeholder="Мәтін енгізіңіз..."></textarea></div>
+      <button class="btn-outline" id="atGenBtn" onclick="adminGenQuestions()">🤖 ЖИ арқылы жасау</button>
+      <div id="atQList" style="margin-top:10px"></div>
+    </div>
+    <div class="inp-err" id="atErr"></div>
+    <button class="btn-green" onclick="adminSaveTest()">💾 САҚТАУ</button>
+    <button class="btn-outline" onclick="document.getElementById('adminTestModal').remove()">× Жабу</button>
+  </div>`;
+  document.body.appendChild(bg);
+}
+
+window._adminGenQuestions=[];
+async function adminGenQuestions(){
+  const btn=document.getElementById('atGenBtn');btn.textContent='Жасалуда…';btn.disabled=true;
+  try{
+    const qs=await genApi({
+      topic:v('atAiTopic'),text:v('atAiText'),
+      count:+v('atAiCount')||5,difficulty:'орташа'
+    });
+    window._adminGenQuestions=qs;
+    renderAdminQPreview(qs);showToast(qs.length+' сұрақ жасалды ✓');
+  }catch(e){document.getElementById('atErr').textContent='AI қатесі: '+e.message;}
+  btn.textContent='🤖 ЖИ арқылы жасау';btn.disabled=false;
+}
+
+function renderAdminQPreview(qs){
+  document.getElementById('atQList').innerHTML=`<p class="section-title">${qs.length} СҰРАҚ (алдын ала)</p>`+
+    qs.map((q,i)=>`<div class="card-sm" style="margin-bottom:8px">
+      <p style="font-size:12px;color:#778;margin-bottom:6px">${i+1}. ${esc(q.text)}</p>
+      ${q.options.map((o,j)=>`<p style="font-size:11px;color:${j===q.correct?'#00ff88':'#445'};margin-left:8px">${['A','B','C','D'][j]}. ${esc(o)}</p>`).join('')}
+    </div>`).join('');
+}
+
+async function adminSaveTest(){
+  const err=document.getElementById('atErr');err.textContent='';
+  const title=v('atTitle');if(!title){err.textContent='Тақырып міндетті';return;}
+  try{
+    await dbApi('admin_create_test',{
+      title,description:v('atDesc'),category:v('atCategory'),
+      mode:v('atMode'),cover_emoji:v('atEmoji')||'📝',
+      questions:window._adminGenQuestions.map(q=>({
+        text:q.text,options:q.options,correct:q.correct,explanation:q.explanation,time_limit:20
+      }))
+    });
+    document.getElementById('adminTestModal')?.remove();
+    showToast('Тест сақталды ✓');adminTab('tests');
+  }catch(e){err.textContent=e.message;}
+}
+
+async function adminDeleteTest(id){
+  if(!confirm('Тестті жоясыз ба?'))return;
+  try{await dbApi('admin_delete_test',{test_id:id});showToast('Жойылды');adminTab('tests');}
+  catch(e){showToast('Қате: '+e.message);}
+}
+
+function adminEditTest(id){showToast('Өңдеу — жақында...');}
+
+// ── EMOJI GRIDS ───────────────────────────────────────────
+function buildEmojiGrids(){
+  ['regEmojiGrid','settingsEmojiGrid'].forEach(gridId=>{
+    const g=document.getElementById(gridId);if(!g)return;
+    g.innerHTML=EMOJIS.map(e=>`
+      <button class="emoji-opt${selectedEmoji===e?' selected':''}" onclick="selectEmoji('${e}','${gridId}')">${e}</button>`).join('');
+  });
+}
+
+function selectEmoji(emoji,gridId){
+  selectedEmoji=emoji;
+  document.querySelectorAll('.emoji-opt').forEach(b=>{
+    b.classList.toggle('selected',b.textContent===emoji);
+  });
+}
+
+// ── SETTINGS (admin game session) ─────────────────────────
+// Admin can create a game session from admin panel
+async function adminCreateGame(testId){
+  try{
+    const sess=await dbApi('create_session',{test_id:testId});
+    showToast('Ойын коды: '+sess.code);return sess;
+  }catch(e){showToast('Қате: '+e.message);}
+}
+
+// ── PARTICLES ─────────────────────────────────────────────
+function spawn(ok){
+  const color=ok?'#00ff88':'#ff4466';
+  const cx=window.innerWidth/2,cy=window.innerHeight*.5;
+  for(let i=0;i<12;i++){
+    const el=document.createElement('div');el.className='particle';
+    el.style.cssText=`left:${cx}px;top:${cy}px;background:${color}`;
+    const a=Math.random()*2*Math.PI,d=40+Math.random()*80;
+    el.style.setProperty('--dx',Math.cos(a)*d+'px');
+    el.style.setProperty('--dy',Math.sin(a)*d-40+'px');
+    document.body.appendChild(el);setTimeout(()=>el.remove(),900);
+  }
+}
+
+// ── TOAST ─────────────────────────────────────────────────
+let toastTimer;
+function showToast(msg){
+  const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');
+  clearTimeout(toastTimer);toastTimer=setTimeout(()=>t.classList.remove('show'),2500);
+}
+
+// ── UTILS ─────────────────────────────────────────────────
+function v(id){return document.getElementById(id)?.value?.trim()||'';}
+function setErr(id,msg){const e=document.getElementById(id);if(e)e.textContent=msg;}
+function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+function loader(){return `<div class="loader"><div class="dots"><div class="dot"></div><div class="dot"></div><div class="dot"></div></div><p class="loader-txt">Жүктелуде…</p></div>`;}
+
+// ── START ─────────────────────────────────────────────────
+init();
+</script>
+</body>
+</html>
