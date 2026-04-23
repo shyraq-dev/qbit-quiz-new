@@ -1,5 +1,4 @@
 // api/db.js
-
 import { sbSelect, sbInsert, sbUpsert, sbUpdate, sbDelete, sbRpc, cors, ok, err } from '../lib/supabase.js';
 import { verifySessionToken } from './auth.js';
 
