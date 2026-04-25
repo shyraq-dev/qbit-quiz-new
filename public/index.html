@@ -493,10 +493,17 @@ textarea.inp{resize:none}
         <div class="av" id="sAvPrev" style="width:68px;height:68px;font-size:30px;border-width:2px">👤</div>
         <div style="flex:1;display:flex;flex-direction:column;gap:8px">
           <button class="btn-o" style="font-size:11px" onclick="document.getElementById('sImgFile').click()">
-            📷 Сурет жүктеу</button>
+            📷 Файлдан жүктеу</button>
           <input type="file" id="sImgFile" accept="image/*" style="display:none" onchange="onAvFile(this)">
+          <button class="btn-o" id="tgPhotoBtn" style="font-size:11px;display:none" onclick="pickTgPhoto()">
+            ✈️ Telegram суретін қою</button>
           <button class="btn-r" style="font-size:11px;padding:9px" onclick="removeAv()">✕ Суретті өшіру</button>
         </div>
+      </div>
+      <!-- Telegram суреттері picker -->
+      <div id="tgPhotoPicker" style="display:none;margin-bottom:12px">
+        <p class="il" style="margin-bottom:8px">TELEGRAM СУРЕТТЕРІН ТАҢДАҢЫЗ</p>
+        <div id="tgPhotoList" style="display:flex;gap:8px;flex-wrap:wrap"></div>
       </div>
       <p class="il" style="margin-bottom:8px">EMOJI-КЕЙІПКЕР (сурет жоқ болса қолданылады)</p>
       <div class="eg" id="setEG"></div>
@@ -526,8 +533,7 @@ textarea.inp{resize:none}
           <input class="inp" id="sUser" type="text"></div>
         <div class="ig"><span class="il">@ЛАҚАП АТЫ</span>
           <input class="inp" id="sHandle" type="text"></div>
-        <div class="ig"><span class="il">АТЫ-ЖӨНІ</span>
-          <input class="inp" id="sName" type="text"></div>
+
         <div class="ig"><span class="il">ТУҒАН КҮН</span>
           <input class="inp" id="sBirth" type="date"></div>
         <div class="ig"><span class="il">ӨЗІ ЖАЙЛЫ</span>
@@ -604,10 +610,8 @@ let lbP='all', libM='all', aS='stats';
 let selEmoji=null, sAvB64=null, sWpB64=null;
 
 function isAdmin(){
-  if(!CU) return false;
-  if(CU.is_admin === true) return true;
-  const ADMIN = (typeof ADMIN_TG_ID !== 'undefined') ? ADMIN_TG_ID : '';
-  return ADMIN && CU.id === 'tg:'+ADMIN;
+  // CU.is_admin сервер /api/auth арқылы дұрыс орнатылады
+  return CU?.is_admin === true;
 }
 
 // ── API ──────────────────────────────────────────────────
@@ -693,7 +697,7 @@ async function doReg(){
   try{
     const r = await aApi('register', {
       username:v('rU'), handle:v('rH'),
-      bio:v('rBio'), birthdate:v('rB'),
+      bio:v('rBio')||null, birthdate:v('rB')||null,
       password:v('rP'), password2:v('rP2'),
       avatar_emoji: selEmoji
     });
@@ -1049,10 +1053,13 @@ function rSettings(){
   sAvB64=null; sWpB64=null;
   document.getElementById('sUser').value  = CU.username||'';
   document.getElementById('sHandle').value= CU.handle?'@'+CU.handle:'';
-  document.getElementById('sName').value  = CU.first_name||'';
+  // sName removed
   document.getElementById('sBirth').value = CU.birthdate||'';
   document.getElementById('sBio').value   = CU.bio||'';
   if(CU.source==='telegram') document.getElementById('sPwdSec').style.display='none';
+  // Telegram қолданушысы үшін TG фото батырмасын көрсету
+  const tgBtn = document.getElementById('tgPhotoBtn');
+  if(tgBtn) tgBtn.style.display = CU.source==='telegram' ? 'flex' : 'none';
   // Аватар preview
   const ap=document.getElementById('sAvPrev');
   if(CU.avatar_url){ ap.innerHTML=`<img src="${CU.avatar_url}" alt="" style="width:100%;height:100%;object-fit:cover;border-radius:50%">`; }
@@ -1084,7 +1091,72 @@ function removeAv(){
   ap.innerHTML=''; ap.textContent='👤';
   selEmoji=null;
   document.querySelectorAll('.eo').forEach(b=>b.classList.remove('sel'));
+  document.getElementById('tgPhotoPicker').style.display='none';
   toast('Сурет өшірілді — Сақтаңыз');
+}
+
+// Telegram суреттерін таңдау
+async function pickTgPhoto(){
+  const picker = document.getElementById('tgPhotoPicker');
+  const list   = document.getElementById('tgPhotoList');
+
+  // Telegram WebApp getUserProfilePhotos-ты тікелей қолдай алмайды.
+  // Бірақ tg.initDataUnsafe.user.photo_url бар.
+  // Бірнеше фото үшін /api/tg-photos endpoint керек (bot API арқылы).
+  // Қазір бар photo_url-дерді көрсетеміз + file жүктеуді ұсынамыз.
+
+  if(tg?.initDataUnsafe?.user?.photo_url){
+    picker.style.display='block';
+    // Telegram тек бір photo_url береді (ең үлкен)
+    // Bot API арқылы көбін алу үшін /api/tg-photos-қа сұраныс
+    list.innerHTML=`<p style="font-size:11px;color:#445">Жүктелуде…</p>`;
+    try{
+      const r = await fetch('/api/tg-photos', {
+        method:'POST',
+        headers:{'Content-Type':'application/json','Authorization':'Bearer '+AT},
+        body: JSON.stringify({})
+      });
+      const j = await r.json();
+      if(j.ok && j.data?.photos?.length){
+        list.innerHTML = j.data.photos.map((url,i)=>`
+          <div onclick="selectTgPhoto('${url}')"
+            style="width:64px;height:64px;border-radius:50%;overflow:hidden;border:2px solid #1a1a2e;
+            cursor:pointer;transition:border-color .18s;flex-shrink:0"
+            onmouseover="this.style.borderColor='#00ff88'" onmouseout="this.style.borderColor='#1a1a2e'">
+            <img src="${url}" style="width:100%;height:100%;object-fit:cover">
+          </div>`).join('');
+      } else {
+        // Тек бар фото
+        const url = tg.initDataUnsafe.user.photo_url;
+        list.innerHTML=`
+          <div onclick="selectTgPhoto('${url}')"
+            style="width:64px;height:64px;border-radius:50%;overflow:hidden;border:2px solid #1a1a2e;cursor:pointer">
+            <img src="${url}" style="width:100%;height:100%;object-fit:cover">
+          </div>`;
+      }
+    }catch(e){
+      const url = tg?.initDataUnsafe?.user?.photo_url;
+      if(url){
+        list.innerHTML=`
+          <div onclick="selectTgPhoto('${url}')"
+            style="width:64px;height:64px;border-radius:50%;overflow:hidden;border:2px solid #1a1a2e;cursor:pointer">
+            <img src="${url}" style="width:100%;height:100%;object-fit:cover">
+          </div>`;
+      } else {
+        list.innerHTML=`<p style="font-size:11px;color:#ff4466">Сурет табылмады</p>`;
+      }
+    }
+  } else {
+    toast('Telegram бейінінде сурет жоқ');
+  }
+}
+
+function selectTgPhoto(url){
+  sAvB64 = url; // URL болса да сақтаймыз
+  const ap=document.getElementById('sAvPrev');
+  ap.innerHTML=`<img src="${url}" alt="" style="width:100%;height:100%;object-fit:cover;border-radius:50%">`;
+  document.getElementById('tgPhotoPicker').style.display='none';
+  toast('Сурет таңдалды — Сақтаңыз');
 }
 
 // Тұсқағаз файл
@@ -1111,7 +1183,7 @@ async function saveProf(){
   setE('sProfErr','');
   const payload={
     username: v('sUser'), handle: v('sHandle'),
-    first_name: v('sName'), birthdate: v('sBirth'), bio: v('sBio'),
+    birthdate: v('sBirth')||null, bio: v('sBio')||null,
     avatar_emoji: sAvB64 ? null : (selEmoji||CU.avatar_emoji||null),
   };
   if(sAvB64==='__remove__')    payload.avatar_url   = null;
