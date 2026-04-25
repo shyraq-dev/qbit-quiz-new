@@ -2,7 +2,7 @@
 // 1. HuggingFace AlemLLM (қазақша, негізгі)
 // 2. Gemini API (server-side, жапсырма ретінде)
 import { cors, ok, err } from '../lib/supabase.js';
-import { verifySessionToken } from './auth.js';
+import { verifySessionToken } from '../lib/session.js';
 
 const HF_TOKEN     = process.env.HF_TOKEN;       // HuggingFace token
 const GEMINI_KEY   = process.env.GEMINI_KEY;      // Gemini API key
