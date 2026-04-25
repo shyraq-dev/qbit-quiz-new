@@ -4,7 +4,7 @@ import { sbSelect, sbInsert, sbUpdate, cors, ok, err } from '../lib/supabase.js'
 import { makeSessionToken, verifySessionToken } from '../lib/session.js';
 
 const BOT_TOKEN = process.env.BOT_TOKEN;
-const ADMIN_ID  = process.env.ADMIN_ID;
+const ADMIN_ID  = process.env.ADMIN_ID || process.env.ADMIN_TG_ID || '';
 
 export default async function handler(req, res) {
   cors(res);
@@ -136,7 +136,7 @@ async function telegramAuth({ initData }) {
   if (!tgUser?.id) throw se('no_telegram_user', 400);
 
   const uid     = `tg:${tgUser.id}`;
-  const isAdmin = String(tgUser.id) === String(ADMIN_ID);
+  const isAdmin = !!(ADMIN_ID && String(tgUser.id) === String(ADMIN_ID).trim());
 
   // Бар user-ді тексеру
   const existing = await sbSelect('users', `id=eq.${encodeURIComponent(uid)}&limit=1`);
@@ -216,9 +216,10 @@ async function verifySession({ token }) {
   if (!rows.length) throw se('user_not_found', 404);
 
   const user = safe(rows[0]);
+  console.log('[admin-check] user.id='+user.id+' ADMIN_ID='+ADMIN_ID+' match='+(user.id===`tg:${String(ADMIN_ID).trim()}`));
   // is_admin: ADMIN_ID арқылы сервер жағында тексеру
   // (Supabase-та is_admin column жоқ болса да жұмыс істейді)
-  if (ADMIN_ID && user.id === `tg:${ADMIN_ID}`) {
+  if (ADMIN_ID && user.id === `tg:${String(ADMIN_ID).trim()}`) {
     user.is_admin = true;
     // DB-да да жаңарту (жоқ болса қате болмауы үшін try/catch)
     try {
