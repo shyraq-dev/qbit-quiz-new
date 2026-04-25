@@ -2,7 +2,7 @@
 import { sbSelect, sbInsert, sbUpsert, sbUpdate, sbDelete, sbRpc, cors, ok, err } from '../lib/supabase.js';
 import { verifySessionToken } from '../lib/session.js';
 
-const ADMIN_ID = process.env.ADMIN_ID;
+const ADMIN_ID = (process.env.ADMIN_ID || process.env.ADMIN_TG_ID || '').trim();
 
 export default async function handler(req, res) {
   cors(res);
@@ -60,15 +60,22 @@ async function requireAuth(session, fn) {
 
 async function requireAdmin(session, fn) {
   if (!session) throw Object.assign(new Error('unauthorized'), { status: 401 });
-  // ADMIN_ID арқылы тікелей тексеру (is_admin column жоқ болса да жұмыс істейді)
   const uid = session.uid;
-  const isAdminById = uid === `tg:${ADMIN_ID}` || uid === ADMIN_ID;
-  if (isAdminById) return fn();
-  // DB-дан is_admin тексеру (column бар болса)
+  console.log('[requireAdmin] uid='+uid+' ADMIN_ID='+ADMIN_ID);
+  // 1. ADMIN_ID тікелей тексеру
+  if (ADMIN_ID && (uid === `tg:${ADMIN_ID}` || uid === ADMIN_ID)) {
+    console.log('[requireAdmin] granted by ADMIN_ID');
+    return fn();
+  }
+  // 2. DB-дан is_admin тексеру
   try {
-    const rows = await sbSelect('users', `id=eq.${encodeURIComponent(uid)}&select=is_admin&limit=1`);
-    if (rows.length && rows[0].is_admin === true) return fn();
-  } catch (_) { /* is_admin column жоқ болуы мүмкін */ }
+    const rows = await sbSelect('users', `id=eq.${encodeURIComponent(uid)}&limit=1`);
+    if (rows.length && rows[0].is_admin === true) {
+      console.log('[requireAdmin] granted by is_admin flag');
+      return fn();
+    }
+  } catch (_) {}
+  console.log('[requireAdmin] denied');
   throw Object.assign(new Error('forbidden'), { status: 403 });
 }
 
