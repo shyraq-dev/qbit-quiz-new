@@ -76,29 +76,29 @@ async function generate({ topic, text, count, difficulty }) {
 
 // ── AlemLLM ──────────────────────────────────────────────
 async function callAlemLLM(userPrompt) {
-  const r = await fetch(
-    `https://api-inference.huggingface.co/models/${HF_MODEL}/v1/chat/completions`,
-    {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${HF_TOKEN}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: HF_MODEL,
-        messages: [
-          { role: 'system', content: SYSTEM_PROMPT },
-          { role: 'user',   content: userPrompt },
-        ],
-        max_tokens: 2000,
+  // HuggingFace Inference API — жаңа Serverless endpoint
+  // astanahub/alemllm моделі үшін дұрыс URL:
+  const url = `https://api-inference.huggingface.co/models/${HF_MODEL}`;
+  const r = await fetch(url, {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${HF_TOKEN}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      inputs: `${SYSTEM_PROMPT}\n\nАдам: ${userPrompt}\n\nЖауап (тек JSON):`,
+      parameters: {
+        max_new_tokens: 2000,
         temperature: 0.7,
-        stream: false,
-      }),
-    }
-  );
+        return_full_text: false,
+      },
+    }),
+  });
   if (!r.ok) throw new Error(`HF ${r.status}: ${await r.text()}`);
   const d = await r.json();
-  const raw = d.choices?.[0]?.message?.content || '';
+  // HF text-generation response форматы: [{generated_text: "..."}] немесе {generated_text: "..."}
+  const raw = Array.isArray(d) ? d[0]?.generated_text : d?.generated_text;
+  if (!raw) throw new Error('HF empty response');
   return parseQuestions(raw);
 }
 
