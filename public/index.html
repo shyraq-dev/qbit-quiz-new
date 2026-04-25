@@ -655,47 +655,54 @@ async function genApi(p){
 }
 
 // ── INIT ─────────────────────────────────────────────────
-const IS_TG = !!(window.Telegram?.WebApp?.initData?.length > 10);
+// IS_TG: Telegram Mini App ортасы ма?
+const IS_TG = !!(window.Telegram?.WebApp?.initData && window.Telegram.WebApp.initData.length > 10);
+
+// Token тек sessionStorage-да (tab жабылса тазаланады)
+// sessionStorage ғана — барлық деректер Supabase-та сақталады
+function saveToken(tok){ try{ sessionStorage.setItem('qb_t', tok); }catch(e){} }
+function loadToken(){ try{ return sessionStorage.getItem('qb_t'); }catch(e){ return null; } }
+function clearToken(){ try{ sessionStorage.removeItem('qb_t'); }catch(e){} }
 
 async function init(){
   buildEG('regEG'); buildEG('setEG');
 
-  // Telegram Mini App — initData әрқашан бар болады
-  // initData өзгермейді, сессия керек емес, әр жолы auth жасаймыз
+  // ── TELEGRAM ──────────────────────────────────────────
+  // TG-да initData әрқашан бар — соның өзі аутентификация
+  // Session сақтаудың қажеті жоқ, initData жарамды болса кіреміз
   if(IS_TG){
     try{
       const r = await aApi('telegram_auth', {initData: tg.initData});
       sess(r); go(); return;
     }catch(e){
       console.error('[tg-auth]', e.message);
-      // Retry 3 секундтан кейін (network error болуы мүмкін)
+      // Желі қатесі — 3 сек күтіп қайталаймыз
       setTimeout(()=>location.reload(), 3000);
       return;
     }
   }
 
-  // Web браузер — сақталған session тексеру
-  const tok = localStorage.getItem('qbit_tok');
+  // ── WEB БРАУЗЕР ───────────────────────────────────────
+  // sessionStorage-дан token оқу (Supabase verify арқылы тексеру)
+  const tok = loadToken();
   if(tok){
     AT = tok;
     try{
       const r = await aApi('verify_session', {token: tok});
       CU = r.user; go(); return;
     }catch(e){
-      localStorage.removeItem('qbit_tok'); AT = null;
+      clearToken(); AT = null;
     }
   }
 
-  // Web браузер — кіру/тіркелу экраны
+  // Token жоқ немесе жарамсыз — кіру/тіркелу экраны
   renderAuth();
 }
 
 function sess({user, token}){
   CU = user; AT = token;
-  // localStorage — тек web браузерде, TG-да token-ді жадта ұстаймыз
-  if(token && !IS_TG){
-    try{ localStorage.setItem('qbit_tok', token); }catch(e){}
-  }
+  // Token-ді sessionStorage-да сақтаймыз (тек web, TG-да керек емес)
+  if(token && !IS_TG) saveToken(token);
 }
 function renderAuth(){
   showS('auth');
@@ -1277,7 +1284,9 @@ async function chPwd(){
 
 function doLogout(){
   CU=null; AT=null;
-  try{ localStorage.removeItem('qbit_tok'); }catch(e){}
+  clearToken();
+  // TG-да reload — initData арқылы қайта кіреді
+  // Web-та auth экраны
   if(IS_TG){ location.reload(); } else { renderAuth(); }
 }
 function confirmDel(){
