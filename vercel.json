@@ -4,9 +4,10 @@
     "api/*.js": { "maxDuration": 30 }
   },
   "rewrites": [
-    { "source": "/api/auth",     "destination": "/api/auth.js" },
-    { "source": "/api/db",       "destination": "/api/db.js" },
-    { "source": "/api/generate", "destination": "/api/generate.js" },
-    { "source": "/(.*)",         "destination": "/public/index.html" }
+    { "source": "/api/auth",       "destination": "/api/auth.js" },
+    { "source": "/api/db",         "destination": "/api/db.js" },
+    { "source": "/api/generate",   "destination": "/api/generate.js" },
+    { "source": "/api/tg-photos",  "destination": "/api/tg-photos.js" },
+    { "source": "/(.*)",           "destination": "/public/index.html" }
   ]
 }
