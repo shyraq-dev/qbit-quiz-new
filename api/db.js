@@ -1,6 +1,6 @@
 // api/db.js
 import { sbSelect, sbInsert, sbUpsert, sbUpdate, sbDelete, sbRpc, cors, ok, err } from '../lib/supabase.js';
-import { verifySessionToken } from './auth.js';
+import { verifySessionToken } from '../lib/session.js';
 
 const ADMIN_ID = process.env.ADMIN_ID;
 
@@ -60,11 +60,16 @@ async function requireAuth(session, fn) {
 
 async function requireAdmin(session, fn) {
   if (!session) throw Object.assign(new Error('unauthorized'), { status: 401 });
-  const rows = await sbSelect('users', `id=eq.${session.uid}&limit=1`);
-  if (!rows.length || (!rows[0].is_admin && `tg:${rows[0].id?.replace('tg:','')}` !== `tg:${ADMIN_ID}` && rows[0].id !== `tg:${ADMIN_ID}`)) {
-    throw Object.assign(new Error('forbidden'), { status: 403 });
-  }
-  return fn();
+  // ADMIN_ID арқылы тікелей тексеру (is_admin column жоқ болса да жұмыс істейді)
+  const uid = session.uid;
+  const isAdminById = uid === `tg:${ADMIN_ID}` || uid === ADMIN_ID;
+  if (isAdminById) return fn();
+  // DB-дан is_admin тексеру (column бар болса)
+  try {
+    const rows = await sbSelect('users', `id=eq.${encodeURIComponent(uid)}&select=is_admin&limit=1`);
+    if (rows.length && rows[0].is_admin === true) return fn();
+  } catch (_) { /* is_admin column жоқ болуы мүмкін */ }
+  throw Object.assign(new Error('forbidden'), { status: 403 });
 }
 
 // ── PROFILE ───────────────────────────────────────────────
@@ -80,29 +85,35 @@ async function getProfile({ user_id }) {
 
 async function updateProfile(session, { username, handle, first_name, bio, birthdate, avatar_url, avatar_emoji, wallpaper_url, password, password_new, password_new2 }) {
   const update = {};
-  if (username) update.username = username;
-  if (handle !== undefined) update.handle = handle ? handle.replace(/^@/, '') : null;
-  if (first_name !== undefined) update.first_name = first_name;
-  if (bio !== undefined) update.bio = bio;
-  if (birthdate !== undefined) update.birthdate = birthdate;
-  if (avatar_url !== undefined) update.avatar_url = avatar_url;
-  if (avatar_emoji !== undefined) update.avatar_emoji = avatar_emoji;
-  if (wallpaper_url !== undefined) update.wallpaper_url = wallpaper_url;
+  if (username)                        update.username      = username;
+  if (handle !== undefined)            update.handle        = handle ? handle.replace(/^@/, '') || null : null;
+  if (first_name !== undefined)        update.first_name    = first_name || null;
+  if (bio !== undefined)               update.bio           = bio || null;
+  // birthdate: бос string → null (PostgreSQL date type үшін)
+  if (birthdate !== undefined)         update.birthdate     = birthdate || null;
+  if (avatar_url !== undefined)        update.avatar_url    = avatar_url || null;
+  if (avatar_emoji !== undefined)      update.avatar_emoji  = avatar_emoji || null;
+  if (wallpaper_url !== undefined)     update.wallpaper_url = wallpaper_url || null;
 
   if (password_new) {
-    const { verifySessionToken } = await import('./auth.js');
+    // lib/session.js-тен crypto алу (circular import жоқ)
     const crypto = await import('crypto');
-    const hashFn = (p) => crypto.default.createHmac('sha256', process.env.PWD_SECRET || 'qbit_secret').update(p).digest('hex');
-    const rows = await sbSelect('users', `id=eq.${session.uid}&limit=1`);
+    const hashFn = (p) => crypto.default
+      .createHmac('sha256', process.env.PWD_SECRET || 'qbit_secret')
+      .update(p).digest('hex');
+    const rows = await sbSelect('users', `id=eq.${encodeURIComponent(session.uid)}&limit=1`);
     if (!rows.length || rows[0].password_hash !== hashFn(password)) {
       throw Object.assign(new Error('wrong_password'), { status: 401 });
     }
     if (password_new !== password_new2) throw Object.assign(new Error('passwords_mismatch'), { status: 400 });
+    if (password_new.length < 6) throw Object.assign(new Error('password_too_short'), { status: 400 });
     update.password_hash = hashFn(password_new);
   }
 
-  const rows = await sbUpdate('users', update, `id=eq.${session.uid}`);
+  if (!Object.keys(update).length) return {};
+  const rows = await sbUpdate('users', update, `id=eq.${encodeURIComponent(session.uid)}`);
   const u = Array.isArray(rows) ? rows[0] : rows;
+  if (!u) return {};
   const { password_hash, reset_token, reset_expires, ...safe } = u;
   return safe;
 }
