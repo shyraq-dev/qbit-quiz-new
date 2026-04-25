@@ -655,10 +655,26 @@ async function genApi(p){
 }
 
 // ── INIT ─────────────────────────────────────────────────
+const IS_TG = !!(window.Telegram?.WebApp?.initData?.length > 10);
+
 async function init(){
   buildEG('regEG'); buildEG('setEG');
 
-  // 1. Сақталған session — жылдам тексеру
+  // Telegram Mini App — initData әрқашан бар болады
+  // initData өзгермейді, сессия керек емес, әр жолы auth жасаймыз
+  if(IS_TG){
+    try{
+      const r = await aApi('telegram_auth', {initData: tg.initData});
+      sess(r); go(); return;
+    }catch(e){
+      console.error('[tg-auth]', e.message);
+      // Retry 3 секундтан кейін (network error болуы мүмкін)
+      setTimeout(()=>location.reload(), 3000);
+      return;
+    }
+  }
+
+  // Web браузер — сақталған session тексеру
   const tok = localStorage.getItem('qbit_tok');
   if(tok){
     AT = tok;
@@ -670,28 +686,16 @@ async function init(){
     }
   }
 
-  // 2. Telegram Mini App
-  if(tg?.initData && tg.initData.length > 10){
-    try{
-      const r = await aApi('telegram_auth', {initData: tg.initData});
-      sess(r); go(); return;
-    }catch(e){ console.warn('[tg]', e.message); }
-  }
-
-  // 3. TG Mini App болса — auth экраны жоқ (TG auth failed, retry)
-  if(tg?.initData && tg.initData.length > 10){
-    // TG ортасында auth экранын көрсетпейміз — қайта жүктейміз
-    document.body.innerHTML='<div style="height:100vh;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:16px;background:#070710;color:#445;font-family:monospace"><div style="font-size:44px;font-weight:900;color:#00ff88">QBit</div><p style="font-size:11px;letter-spacing:2px">Жүктелуде…</p></div>';
-    setTimeout(()=>location.reload(), 2000);
-    return;
-  }
-  // 4. Web браузер — auth экраны
+  // Web браузер — кіру/тіркелу экраны
   renderAuth();
 }
 
 function sess({user, token}){
   CU = user; AT = token;
-  if(token) localStorage.setItem('qbit_tok', token);
+  // localStorage — тек web браузерде, TG-да token-ді жадта ұстаймыз
+  if(token && !IS_TG){
+    try{ localStorage.setItem('qbit_tok', token); }catch(e){}
+  }
 }
 function renderAuth(){
   showS('auth');
@@ -1272,7 +1276,9 @@ async function chPwd(){
 }
 
 function doLogout(){
-  CU=null; AT=null; localStorage.removeItem('qbit_tok'); renderAuth();
+  CU=null; AT=null;
+  try{ localStorage.removeItem('qbit_tok'); }catch(e){}
+  if(IS_TG){ location.reload(); } else { renderAuth(); }
 }
 function confirmDel(){
   if(!confirm('Барлық деректеріңіз жойылады. Жалғастырасыз ба?')) return;
