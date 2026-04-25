@@ -591,7 +591,7 @@ textarea.inp{resize:none}
 </div>
 
 <!-- ═══ ADMIN ═══ -->
-<div id="s-admin" class="screen">
+<div id="s-admin" class="screen" style="overflow-y:auto">
   <div class="si">
     <div class="topbar"><span class="tlogo" style="color:#ffd60a">🛡️ Әкімші тақтасы</span></div>
     <div style="display:flex;gap:6px;flex-wrap:wrap">
@@ -681,7 +681,7 @@ async function init(){
   // 3. TG Mini App болса — auth экраны жоқ (TG auth failed, retry)
   if(tg?.initData && tg.initData.length > 10){
     // TG ортасында auth экранын көрсетпейміз — қайта жүктейміз
-    document.body.innerHTML='<div style="height:100vh;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:16px;background:#070710;color:#445;font-family:monospace"><div style="font-size:44px;font-weight:900;color:#00ff88">QBit</div><p style="font-size:11px;letter-spacing:2px">Жүктеліп жатыр…</p></div>';
+    document.body.innerHTML='<div style="height:100vh;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:16px;background:#070710;color:#445;font-family:monospace"><div style="font-size:44px;font-weight:900;color:#00ff88">QBit</div><p style="font-size:11px;letter-spacing:2px">Жүктелуде…</p></div>';
     setTimeout(()=>location.reload(), 2000);
     return;
   }
@@ -1171,7 +1171,7 @@ async function pickTgPhoto(){
     picker.style.display='block';
     // Telegram тек бір photo_url береді (ең үлкен)
     // Bot API арқылы көбін алу үшін /api/tg-photos-қа сұраныс
-    list.innerHTML=`<p style="font-size:11px;color:#445">Жүктеліп жатыр…</p>`;
+    list.innerHTML=`<p style="font-size:11px;color:#445">Жүктелуде…</p>`;
     try{
       const r = await fetch('/api/tg-photos', {
         method:'POST',
@@ -1289,7 +1289,7 @@ function rGame(){
   document.getElementById('gJoin').style.display='block';
   document.getElementById('builtins').innerHTML=[
     {e:'🗺️',t:'Астаналар',d:'Елдің астанасын тап'},
-    {e:'🏳️',t:'Туулар',d:'Елдің туын тап'},
+    {e:'🏳️',t:'Тулар',d:'Елдің туын тап'},
     {e:'🖼️',t:'4 сурет, 1 сөз',d:'Суреттен сөзді тап'},
   ].map(g=>`<div class="gtile" onclick="toast('Жақында...')">
     <div style="font-size:34px">${g.e}</div>
@@ -1402,7 +1402,7 @@ async function aTab(t){
           </div>
           <div class="ast" style="cursor:pointer;border-color:rgba(0,255,136,.2)" onclick="aManageBuiltin('flags')">
             <div style="font-size:28px;margin-bottom:6px">🏳️</div>
-            <div style="font-size:13px;font-weight:700;color:#e8e8ff">Туулар</div>
+            <div style="font-size:13px;font-weight:700;color:#e8e8ff">Тулар</div>
             <div class="asl" style="margin-top:4px">Елдің туын тап</div>
           </div>
           <div class="ast" style="cursor:pointer;border-color:rgba(100,100,255,.2)" onclick="aManageBuiltin('4pics')">
@@ -1459,6 +1459,67 @@ async function aTab(t){
 }
 
 window._aQs=[];
+let _qMode='ai';
+
+function switchQMode(mode){
+  _qMode=mode;
+  document.getElementById('modeAI').classList.toggle('active',mode==='ai');
+  document.getElementById('modeManual').classList.toggle('active',mode==='manual');
+  document.getElementById('aiSection').style.display=mode==='ai'?'flex':'none';
+  document.getElementById('manualSection').style.display=mode==='manual'?'flex':'none';
+  if(mode==='manual' && !document.querySelector('.mq-item')) addManualQ();
+}
+
+let _mqCount=0;
+function addManualQ(){
+  _mqCount++;
+  const id='mq'+_mqCount;
+  const div=document.createElement('div');
+  div.className='csm'; div.id=id; div.style.marginBottom='12px';
+  div.innerHTML=`
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+      <span class="il">СҰРАҚ ${_mqCount}</span>
+      <button class="ib del" onclick="document.getElementById('${id}').remove()">✕</button>
+    </div>
+    <textarea class="inp mq-text" rows="2" placeholder="Сұрақ мәтіні..." style="margin-bottom:8px"></textarea>
+    <div style="display:flex;flex-direction:column;gap:6px">
+      <div style="display:flex;gap:6px;align-items:center">
+        <input type="radio" name="${id}correct" value="0" checked style="accent-color:#00ff88">
+        <input class="inp mq-opt" style="flex:1;padding:8px" placeholder="A жауап">
+      </div>
+      <div style="display:flex;gap:6px;align-items:center">
+        <input type="radio" name="${id}correct" value="1" style="accent-color:#00ff88">
+        <input class="inp mq-opt" style="flex:1;padding:8px" placeholder="B жауап">
+      </div>
+      <div style="display:flex;gap:6px;align-items:center">
+        <input type="radio" name="${id}correct" value="2" style="accent-color:#00ff88">
+        <input class="inp mq-opt" style="flex:1;padding:8px" placeholder="C жауап">
+      </div>
+      <div style="display:flex;gap:6px;align-items:center">
+        <input type="radio" name="${id}correct" value="3" style="accent-color:#00ff88">
+        <input class="inp mq-opt" style="flex:1;padding:8px" placeholder="D жауап">
+      </div>
+    </div>
+    <input class="inp" placeholder="Түсіндірме (міндетті емес)" style="margin-top:8px;padding:8px" class="mq-expl">`;
+  div.querySelector('.mq-text'); // just reference
+  document.getElementById('manualQList').appendChild(div);
+}
+
+function getManualQs(){
+  const items=document.querySelectorAll('#manualQList .csm');
+  const qs=[];
+  items.forEach(item=>{
+    const text=item.querySelector('.mq-text')?.value?.trim();
+    const opts=[...item.querySelectorAll('.mq-opt')].map(i=>i.value.trim());
+    const radios=item.querySelectorAll('input[type=radio]');
+    let correct=0;
+    radios.forEach((r,i)=>{ if(r.checked) correct=i; });
+    const expl=item.querySelector('input:last-child')?.value?.trim();
+    if(text && opts.every(o=>o)) qs.push({text,options:opts,correct,explanation:expl||''});
+  });
+  return qs;
+}
+
 function aCreateModal(){
   const old=document.getElementById('aM'); if(old) old.remove();
   const bg=document.createElement('div');
@@ -1475,18 +1536,39 @@ function aCreateModal(){
           <option value="test">📝 Тест (соңында нәтиже)</option>
         </select></div>
       <div class="ig"><span class="il">EMOJI</span><input class="inp" id="aE" value="📝" style="font-size:22px"></div>
+
       <div class="divider"></div>
-      <p class="il" style="margin-bottom:6px">🤖 ЖИ арқылы сұрақ жасау (AlemLLM / Gemini)</p>
-      <div class="ig"><span class="il">ТАҚЫРЫП (AI)</span><input class="inp" id="aTopic" placeholder="Қазақстан тарихы"></div>
-      <div class="ig"><span class="il">СҰРАҚ САНЫ</span><input class="inp" id="aCnt" type="number" value="5" min="1" max="20"></div>
-      <div class="ig"><span class="il">НЕМЕСЕ МӘТІН АРҚЫЛЫ</span><textarea class="inp" id="aTxt" rows="3" placeholder="Мәтін енгізіңіз..."></textarea></div>
-      <button class="btn-o" id="aGB" onclick="aGen()">🤖 ЖИ арқылы жасау</button>
+
+      <!-- Сұрақ жасау режимі -->
+      <div style="display:flex;gap:8px">
+        <button class="ltab active" id="modeAI"     onclick="switchQMode('ai')"    >🤖 ЖИ арқылы</button>
+        <button class="ltab"        id="modeManual" onclick="switchQMode('manual')" >✏️ Қолмен</button>
+      </div>
+
+      <!-- AI режим -->
+      <div id="aiSection" class="fs">
+        <div class="ig"><span class="il">ТАҚЫРЫП (AI)</span>
+          <input class="inp" id="aTopic" placeholder="Қазақстан тарихы"></div>
+        <div class="ig"><span class="il">СҰРАҚ САНЫ (1–20)</span>
+          <input class="inp" id="aCnt" type="number" value="5" min="1" max="20"></div>
+        <div class="ig"><span class="il">НЕМЕСЕ МӘТІН АРҚЫЛЫ</span>
+          <textarea class="inp" id="aTxt" rows="3" placeholder="Мәтін енгізіңіз..."></textarea></div>
+        <button class="btn-o" id="aGB" onclick="aGen()">🤖 ЖИ арқылы жасау</button>
+      </div>
+
+      <!-- ҚОЛМЕН режим -->
+      <div id="manualSection" style="display:none" class="fs">
+        <div id="manualQList"></div>
+        <button class="btn-o" onclick="addManualQ()">+ Сұрақ қосу</button>
+      </div>
+
+      <!-- Preview -->
       <div id="aQPrev"></div>
     </div>
     <div class="ie" id="aErr"></div>
     <button class="btn-g" onclick="aSave()">💾 САҚТАУ</button>
     <button class="btn-o" style="margin-top:4px" onclick="document.getElementById('aM').remove()">× Жабу</button>
-  </div>`;
+  </div>\`;
   document.body.appendChild(bg);
   window._aQs=[];
 }
@@ -1512,10 +1594,13 @@ async function aGen(){
 async function aSave(){
   setE('aErr','');
   const title=v('aT'); if(!title){ setE('aErr','Тақырып міндетті'); return; }
+  // Сұрақтарды алу: AI немесе қолмен
+  const qs = _qMode==='manual' ? getManualQs() : window._aQs;
+  if(!qs.length){ setE('aErr','Кем дегенде 1 сұрақ қосыңыз'); return; }
   try{
     await dbApi('admin_create_test',{
       title, description:v('aD'), category:v('aC'), mode:v('aMd'), cover_emoji:v('aE')||'📝',
-      questions: window._aQs.map(q=>({text:q.text,options:q.options,correct:q.correct,explanation:q.explanation,time_limit:20}))
+      questions: qs.map(q=>({text:q.text,options:q.options,correct:q.correct,explanation:q.explanation||'',time_limit:20}))
     });
     document.getElementById('aM')?.remove();
     toast('Тест сақталды ✓'); aTab('tests');
@@ -1559,7 +1644,7 @@ function aControlGame(sessionId, code){
   bg.className='mbg show'; bg.id='aCtrlModal';
   bg.innerHTML=`<div class="modal" style="max-height:90vh;overflow-y:auto">
     <p class="mt">ОЙЫН БАСҚАРУ — ${code}</p>
-    <div id="aCtrlPlayers"><p style="text-align:center;color:#445;font-size:12px">Жүктеліп жатыр…</p></div>
+    <div id="aCtrlPlayers"><p style="text-align:center;color:#445;font-size:12px">Жүктелуде…</p></div>
     <div style="display:flex;gap:8px;margin-top:10px">
       <button class="btn-g" id="aCtrlStart" onclick="aGameAction('${sessionId}','active')">▶ БАСТАУ</button>
       <button class="btn-r" style="flex:none;padding:12px 16px" onclick="aGameAction('${sessionId}','finished')">⏹</button>
@@ -1596,8 +1681,30 @@ async function aGameAction(sessionId, status){
 }
 
 function aManageBuiltin(slug){
-  const names={capitals:'Астаналар',flags:'Туулар','4pics':'4 сурет, 1 сөз'};
-  toast(names[slug]+' — жақында редакциялау мүмкіндігі қосылады');
+  const names={capitals:'Астаналар',flags:'Тулар','4pics':'4 сурет, 1 сөз'};
+  const old=document.getElementById('builtinModal'); if(old) old.remove();
+  const bg=document.createElement('div');
+  bg.className='mbg show'; bg.id='builtinModal';
+  bg.innerHTML=`<div class="modal" style="max-height:90vh;overflow-y:auto">
+    <p class="mt">${names[slug]?.toUpperCase()||slug.toUpperCase()}</p>
+    <div class="fs">
+      <p style="font-size:11px;color:#556;line-height:1.6">
+        Бұл ойын жүйеде кіріктірілген деректермен жұмыс істейді.<br>
+        Қосымша сұрақтар немесе деректер қосу мүмкіндігі жақында қосылады.</p>
+      <div class="divider"></div>
+      <p class="stitle">ОЙЫН ПАРАМЕТРЛЕРІ</p>
+      <div class="ig"><span class="il">АТЫ</span>
+        <input class="inp" value="${names[slug]||slug}" id="biName"></div>
+      <div class="ig"><span class="il">БЕЛСЕНДІ</span>
+        <select class="inp" id="biActive">
+          <option value="1">✓ Белсенді</option>
+          <option value="0">✗ Өшірулі</option>
+        </select></div>
+      <button class="btn-g" onclick="toast('Сақталды ✓');document.getElementById('builtinModal').remove()">💾 САҚТАУ</button>
+    </div>
+    <button class="btn-o" style="margin-top:6px" onclick="document.getElementById('builtinModal').remove()">× Жабу</button>
+  </div>`;
+  document.body.appendChild(bg);
 }
 
 // ── EMOJI ─────────────────────────────────────────────────
@@ -1637,7 +1744,7 @@ function ld(){ return `<div style="display:flex;flex-direction:column;align-item
   <div style="display:flex"><div style="width:8px;height:8px;border-radius:50%;background:#00ff88;margin:0 4px;animation:pulse 1s infinite"></div>
   <div style="width:8px;height:8px;border-radius:50%;background:#00ff88;margin:0 4px;animation:pulse 1s .2s infinite"></div>
   <div style="width:8px;height:8px;border-radius:50%;background:#00ff88;margin:0 4px;animation:pulse 1s .4s infinite"></div></div>
-  <p style="font-size:11px;color:#334;letter-spacing:2px">Жүктеліп жатыр…</p></div>`; }
+  <p style="font-size:11px;color:#334;letter-spacing:2px">Жүктелуде…</p></div>`; }
 
 init();
 </script>
