@@ -591,7 +591,7 @@ textarea.inp{resize:none}
 </div>
 
 <!-- ═══ ADMIN ═══ -->
-<div id="s-admin" class="screen" style="overflow-y:auto">
+<div id="s-admin" class="screen" style="padding-bottom:80px">
   <div class="si">
     <div class="topbar"><span class="tlogo" style="color:#ffd60a">🛡️ Әкімші тақтасы</span></div>
     <div style="display:flex;gap:6px;flex-wrap:wrap">
@@ -1577,11 +1577,17 @@ function aCreateModal(){
         <button class="btn-o" onclick="addManualQ()">+ Сұрақ қосу</button>
       </div>
 
-      <!-- Preview -->
+      <!-- AI Preview -->
       <div id="aQPrev"></div>
     </div>
-    <div class="ie" id="aErr"></div>
-    <button class="btn-g" onclick="aSave()">💾 САҚТАУ</button>
+
+    <div class="divider" style="margin:10px 0"></div>
+    <p class="il" style="margin-bottom:8px">✏️ ҚОЛМЕН СҰРАҚ ҚОСУ</p>
+    <div id="aManualQs" style="display:flex;flex-direction:column;gap:10px"></div>
+    <button class="btn-o" style="font-size:11px" onclick="aAddManualQ()">+ Сұрақ қосу</button>
+
+    <div class="ie" id="aErr" style="margin-top:8px"></div>
+    <button class="btn-g" style="margin-top:4px" onclick="aSave()">💾 САҚТАУ</button>
     <button class="btn-o" style="margin-top:4px" onclick="document.getElementById('aM').remove()">× Жабу</button>
   </div>\`;
   document.body.appendChild(bg);
@@ -1606,11 +1612,53 @@ async function aGen(){
   }catch(e){ setE('aErr','AI қатесі: '+e.message); }
   btn.textContent='🤖 ЖИ арқылы жасау'; btn.disabled=false;
 }
+// Қолмен сұрақ қосу
+let _manualQCount = 0;
+function aAddManualQ(){
+  _manualQCount++;
+  const id = 'mq'+_manualQCount;
+  const wrap = document.createElement('div');
+  wrap.className = 'csm'; wrap.id = id;
+  wrap.style.cssText = 'display:flex;flex-direction:column;gap:8px;position:relative';
+  wrap.innerHTML = `
+    <button onclick="document.getElementById('${id}').remove()"
+      style="position:absolute;top:8px;right:8px;background:none;border:none;color:#ff4466;cursor:pointer;font-size:16px">×</button>
+    <div class="ig"><span class="il">СҰРАҚ</span>
+      <textarea class="inp" id="${id}_q" rows="2" placeholder="Сұрақты осында жазыңыз..."></textarea></div>
+    <div class="ig"><span class="il">A ЖАУАП (дұрыс)</span>
+      <input class="inp" id="${id}_a0" type="text" placeholder="Дұрыс жауап" style="border-color:rgba(0,255,136,.3)"></div>
+    <div class="ig"><span class="il">B ЖАУАП</span>
+      <input class="inp" id="${id}_a1" type="text" placeholder="Жауап B"></div>
+    <div class="ig"><span class="il">C ЖАУАП</span>
+      <input class="inp" id="${id}_a2" type="text" placeholder="Жауап C"></div>
+    <div class="ig"><span class="il">D ЖАУАП</span>
+      <input class="inp" id="${id}_a3" type="text" placeholder="Жауап D"></div>
+    <div class="ig"><span class="il">💡 ТҮСІНДІРМЕ (міндетті емес)</span>
+      <input class="inp" id="${id}_ex" type="text" placeholder="Неге дұрыс?"></div>
+  `;
+  document.getElementById('aManualQs').appendChild(wrap);
+}
+
+function getManualQs(){
+  const qs = [];
+  document.querySelectorAll('#aManualQs > div[id^="mq"]').forEach(wrap=>{
+    const id = wrap.id;
+    const text = document.getElementById(id+'_q')?.value?.trim();
+    const opts = [0,1,2,3].map(i=>document.getElementById(id+'_a'+i)?.value?.trim()||'');
+    const expl = document.getElementById(id+'_ex')?.value?.trim()||'';
+    if(text && opts[0] && opts[1] && opts[2] && opts[3]){
+      qs.push({text, options:opts, correct:0, explanation:expl});
+    }
+  });
+  return qs;
+}
+
 async function aSave(){
   setE('aErr','');
   const title=v('aT'); if(!title){ setE('aErr','Тақырып міндетті'); return; }
   // Сұрақтарды алу: AI немесе қолмен
-  const qs = _qMode==='manual' ? getManualQs() : window._aQs;
+  // AI + қолмен сұрақтарды біріктіру
+  const qs = [...(window._aQs||[]), ...getManualQs()];
   if(!qs.length){ setE('aErr','Кем дегенде 1 сұрақ қосыңыз'); return; }
   try{
     await dbApi('admin_create_test',{
@@ -1697,28 +1745,26 @@ async function aGameAction(sessionId, status){
 
 function aManageBuiltin(slug){
   const names={capitals:'Астаналар',flags:'Тулар','4pics':'4 сурет, 1 сөз'};
-  const old=document.getElementById('builtinModal'); if(old) old.remove();
+  const name = names[slug]||slug;
+  const old2=document.getElementById('builtinModal'); if(old2) old2.remove();
   const bg=document.createElement('div');
   bg.className='mbg show'; bg.id='builtinModal';
-  bg.innerHTML=`<div class="modal" style="max-height:90vh;overflow-y:auto">
-    <p class="mt">${names[slug]?.toUpperCase()||slug.toUpperCase()}</p>
-    <div class="fs">
-      <p style="font-size:11px;color:#556;line-height:1.6">
-        Бұл ойын жүйеде кіріктірілген деректермен жұмыс істейді.<br>
-        Қосымша сұрақтар немесе деректер қосу мүмкіндігі жақында қосылады.</p>
-      <div class="divider"></div>
-      <p class="stitle">ОЙЫН ПАРАМЕТРЛЕРІ</p>
-      <div class="ig"><span class="il">АТЫ</span>
-        <input class="inp" value="${names[slug]||slug}" id="biName"></div>
-      <div class="ig"><span class="il">БЕЛСЕНДІ</span>
-        <select class="inp" id="biActive">
-          <option value="1">✓ Белсенді</option>
-          <option value="0">✗ Өшірулі</option>
-        </select></div>
-      <button class="btn-g" onclick="toast('Сақталды ✓');document.getElementById('builtinModal').remove()">💾 САҚТАУ</button>
-    </div>
-    <button class="btn-o" style="margin-top:6px" onclick="document.getElementById('builtinModal').remove()">× Жабу</button>
-  </div>`;
+  const body = document.createElement('div');
+  body.className='modal';
+  body.style.cssText='max-height:90vh;overflow-y:auto';
+  body.innerHTML='<p class="mt">'+name.toUpperCase()+'</p>'
+    +'<div class="csm" style="margin-bottom:8px">'
+    +'<p style="font-size:12px;color:#e8e8ff;margin-bottom:4px">📊 Статус</p>'
+    +'<p style="font-size:11px;color:#00ff88">✓ Белсенді</p></div>'
+    +'<div class="csm" style="margin-bottom:8px">'
+    +'<p style="font-size:12px;color:#e8e8ff;margin-bottom:4px">🎯 Режим</p>'
+    +'<p style="font-size:11px;color:#445">4 нұсқа · Таймер: 15 сек</p></div>'
+    +'<p style="font-size:11px;color:#556;margin:8px 0;line-height:1.6">Қосымша баптаулар жақында қосылады.</p>';
+  const closeBtn = document.createElement('button');
+  closeBtn.className='btn-o'; closeBtn.textContent='× Жабу';
+  closeBtn.onclick=()=>bg.remove();
+  body.appendChild(closeBtn);
+  bg.appendChild(body);
   document.body.appendChild(bg);
 }
 
