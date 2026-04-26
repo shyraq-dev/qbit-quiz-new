@@ -1,109 +1,82 @@
-// api/generate.js  — AI сұрақ генерациясы
-// 1. HuggingFace AlemLLM (қазақша, негізгі)
-// 2. Gemini API (server-side, жапсырма ретінде)
+// api/generate.js — AI сұрақ генерациясы
+// 1. HuggingFace AlemLLM (astanahub/alemllm)
+// 2. Gemini fallback
 import { cors, ok, err } from '../lib/supabase.js';
 import { verifySessionToken } from '../lib/session.js';
 
-const HF_TOKEN     = process.env.HF_TOKEN;       // HuggingFace token
-const GEMINI_KEY   = process.env.GEMINI_KEY;      // Gemini API key
-const ADMIN_ID     = process.env.ADMIN_ID;
+const HF_TOKEN   = process.env.HF_TOKEN;
+const GEMINI_KEY = process.env.GEMINI_KEY;
 
-const HF_MODEL = 'astanahub/alemllm';
 const SYSTEM_PROMPT = `Сен QBit Quiz платформасының AI-сұрақ генераторысың.
-Сенің міндетің: берілген тақырып бойынша қазақша тест сұрақтарын жасау.
-Тек JSON массивін қайтар, басқа ешнәрсе жоқ. Мысал:
-[
-  {
-    "text": "Сұрақ мәтіні",
-    "options": ["A жауап", "B жауап", "C жауап", "D жауап"],
-    "correct": 0,
-    "explanation": "Түсіндірме"
-  }
-]
-Ережелер:
-- Тек JSON, markdown жоқ, кіріспе жоқ
-- correct — дұрыс жауаптың индексі (0–3)
-- Жауаптар нанымды, бірдей ұзындықта
-- Тек қазақша`;
+Тек JSON массивін қайтар, басқа ешнәрсе жоқ:
+[{"text":"...","options":["...","...","...","..."],"correct":0,"explanation":"..."}]
+Ережелер: тек JSON, markdown жоқ, correct=0-3 индекс, тек қазақша.`;
 
 export default async function handler(req, res) {
   cors(res);
   if (req.method === 'OPTIONS') return res.status(200).end();
-  if (req.method !== 'POST') return err(res, 'POST only', 405);
+  if (req.method !== 'POST')   return err(res, 'POST only', 405);
 
   const token = req.headers.authorization?.replace('Bearer ', '');
-  const session = token ? verifySessionToken(token) : null;
-  if (!session) return err(res, 'unauthorized', 401);
+  if (!verifySessionToken(token)) return err(res, 'unauthorized', 401);
 
-  const { topic, count = 5, difficulty = 'орташа', mode = 'quiz', text } = req.body || {};
+  const { topic, text, count = 5, difficulty = 'орташа' } = req.body || {};
   if (!topic && !text) return err(res, 'topic or text required', 400);
 
-  try {
-    const questions = await generate({ topic, text, count, difficulty });
-    return ok(res, questions);
-  } catch (e) {
-    console.error('[generate]', e.message);
-    return err(res, e.message, 500);
-  }
-}
+  const prompt = text
+    ? `Мына мәтін бойынша ${count} сұрақ жаса (${difficulty}):\n\n${text.slice(0, 2000)}`
+    : `"${topic}" тақырыбы бойынша ${count} ${difficulty} сұрақ жаса.`;
 
-// ── Main generator ────────────────────────────────────────
-async function generate({ topic, text, count, difficulty }) {
-  const userPrompt = text
-    ? `Мына мәтін бойынша ${count} сұрақ жаса (күрделілік: ${difficulty}):\n\n${text.slice(0, 2000)}`
-    : `"${topic}" тақырыбы бойынша ${count} ${difficulty} деңгейлі сұрақ жаса.`;
-
-  // 1. AlemLLM (HuggingFace Inference API)
+  // 1. AlemLLM — HuggingFace Inference API (text-generation pipeline)
   if (HF_TOKEN) {
-    try {
-      return await callAlemLLM(userPrompt);
-    } catch (e) {
-      console.warn('[AlemLLM failed]', e.message, '→ fallback Gemini');
-    }
+    try { return ok(res, await callAlemLLM(prompt)); }
+    catch (e) { console.warn('[AlemLLM]', e.message); }
   }
 
   // 2. Gemini fallback
   if (GEMINI_KEY) {
-    try {
-      return await callGemini(userPrompt);
-    } catch (e) {
-      console.warn('[Gemini failed]', e.message);
-    }
+    try { return ok(res, await callGemini(prompt)); }
+    catch (e) { console.warn('[Gemini]', e.message); }
   }
 
-  throw new Error('ai_unavailable');
+  return err(res, 'ai_unavailable', 503);
 }
 
 // ── AlemLLM ──────────────────────────────────────────────
-async function callAlemLLM(userPrompt) {
-  // HuggingFace Inference API — жаңа Serverless endpoint
-  // astanahub/alemllm моделі үшін дұрыс URL:
-  const url = `https://api-inference.huggingface.co/models/${HF_MODEL}`;
-  const r = await fetch(url, {
-    method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${HF_TOKEN}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      inputs: `${SYSTEM_PROMPT}\n\nАдам: ${userPrompt}\n\nЖауап (тек JSON):`,
-      parameters: {
-        max_new_tokens: 2000,
-        temperature: 0.7,
-        return_full_text: false,
+// astanahub/alemllm — text-generation (Inference API v2)
+async function callAlemLLM(prompt) {
+  const r = await fetch(
+    'https://api-inference.huggingface.co/models/astanahub/alemllm',
+    {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${HF_TOKEN}`,
+        'Content-Type': 'application/json',
+        'x-wait-for-model': 'true',
       },
-    }),
-  });
-  if (!r.ok) throw new Error(`HF ${r.status}: ${await r.text()}`);
+      body: JSON.stringify({
+        inputs: `<s>[INST] ${SYSTEM_PROMPT}\n\n${prompt} [/INST]`,
+        parameters: {
+          max_new_tokens: 2048,
+          temperature: 0.7,
+          return_full_text: false,
+          do_sample: true,
+        },
+      }),
+    }
+  );
+  if (!r.ok) {
+    const t = await r.text();
+    throw new Error(`HF ${r.status}: ${t.slice(0, 200)}`);
+  }
   const d = await r.json();
-  // HF text-generation response форматы: [{generated_text: "..."}] немесе {generated_text: "..."}
   const raw = Array.isArray(d) ? d[0]?.generated_text : d?.generated_text;
   if (!raw) throw new Error('HF empty response');
-  return parseQuestions(raw);
+  return parse(raw);
 }
 
 // ── Gemini ────────────────────────────────────────────────
-async function callGemini(userPrompt) {
+async function callGemini(prompt) {
   const r = await fetch(
     `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_KEY}`,
     {
@@ -111,29 +84,28 @@ async function callGemini(userPrompt) {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         system_instruction: { parts: [{ text: SYSTEM_PROMPT }] },
-        contents: [{ parts: [{ text: userPrompt }] }],
-        generationConfig: { temperature: 0.7, maxOutputTokens: 2000 },
+        contents: [{ parts: [{ text: prompt }] }],
+        generationConfig: { temperature: 0.7, maxOutputTokens: 2048 },
       }),
     }
   );
-  if (!r.ok) throw new Error(`Gemini ${r.status}: ${await r.text()}`);
+  if (!r.ok) throw new Error(`Gemini ${r.status}`);
   const d = await r.json();
   const raw = d.candidates?.[0]?.content?.parts?.[0]?.text || '';
-  return parseQuestions(raw);
+  return parse(raw);
 }
 
 // ── Parser ────────────────────────────────────────────────
-function parseQuestions(raw) {
+function parse(raw) {
   const clean = raw.replace(/```json|```/g, '').trim();
-  // JSON массивін тап
-  const match = clean.match(/\[[\s\S]*\]/);
-  if (!match) throw new Error('parse_error: no JSON array found');
-  const parsed = JSON.parse(match[0]);
-  if (!Array.isArray(parsed) || !parsed.length) throw new Error('parse_error: empty array');
-  return parsed.map(q => ({
-    text: String(q.text || q.question || ''),
+  const m = clean.match(/\[[\s\S]*\]/);
+  if (!m) throw new Error('no JSON array');
+  const arr = JSON.parse(m[0]);
+  if (!Array.isArray(arr) || !arr.length) throw new Error('empty array');
+  return arr.map(q => ({
+    text: String(q.text || q.question || '').trim(),
     options: Array.isArray(q.options) ? q.options.map(String) : [],
     correct: Number(q.correct ?? q.answer ?? 0),
-    explanation: String(q.explanation || ''),
+    explanation: String(q.explanation || '').trim(),
   })).filter(q => q.text && q.options.length === 4);
 }
