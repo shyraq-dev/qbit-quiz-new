@@ -1,0 +1,10 @@
+{
+  "version": 2,
+  "functions": { "api/*.js": { "maxDuration": 30 } },
+  "rewrites": [
+    { "source": "/api/auth",      "destination": "/api/auth.js" },
+    { "source": "/api/db",        "destination": "/api/db.js" },
+    { "source": "/api/tg-photos", "destination": "/api/tg-photos.js" },
+    { "source": "/(.*)",          "destination": "/public/index.html" }
+  ]
+}
