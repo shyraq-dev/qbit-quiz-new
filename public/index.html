@@ -1,0 +1,2404 @@
+<!DOCTYPE html>
+<html lang="kk">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>QBit Quiz</title>
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+html,body{height:100%;background:#070710;color:#e8e8ff;font-family:'Space Mono',monospace;overflow:hidden}
+body::before{content:'';position:fixed;inset:0;pointer-events:none;z-index:0;
+  background-image:linear-gradient(rgba(0,255,136,.04)1px,transparent 1px),
+  linear-gradient(90deg,rgba(0,255,136,.04)1px,transparent 1px);background-size:40px 40px}
+/* SCREENS */
+.screen{position:fixed;inset:0;z-index:1;display:flex;flex-direction:column;align-items:center;
+  padding:0 0 64px;opacity:0;pointer-events:none;transition:opacity .2s;overflow-y:auto}
+.screen.active{opacity:1;pointer-events:all}
+.si{position:relative;z-index:1;width:100%;max-width:480px;padding:16px 16px 24px;
+  display:flex;flex-direction:column;gap:14px;min-height:100%}
+/* BNAV */
+.bnav{position:fixed;bottom:0;left:0;right:0;z-index:100;display:none;
+  justify-content:space-around;align-items:center;background:#0a0a18;
+  border-top:1px solid #141425;padding:8px 0 max(8px,env(safe-area-inset-bottom))}
+.bnav.show{display:flex}
+.nb{display:flex;flex-direction:column;align-items:center;gap:3px;background:none;border:none;
+  color:#334;cursor:pointer;font-family:inherit;font-size:9px;letter-spacing:1px;
+  padding:4px 14px;transition:color .18s;-webkit-tap-highlight-color:transparent}
+.nb.active{color:#00ff88}
+.nb-i{font-size:22px;line-height:1}
+/* DRAWER */
+.dbg{position:fixed;inset:0;z-index:200;background:rgba(7,7,16,.75);opacity:0;pointer-events:none;transition:opacity .25s}
+.dbg.show{opacity:1;pointer-events:all}
+.drawer{position:fixed;left:0;top:0;bottom:0;width:265px;z-index:201;background:#0a0a18;
+  border-right:1px solid #141425;transform:translateX(-100%);transition:transform .28s;
+  display:flex;flex-direction:column;overflow:hidden}
+.drawer.open{transform:translateX(0)}
+.du{padding:16px 20px;border-bottom:1px solid #141425;display:flex;gap:12px;align-items:center;flex-shrink:0}
+.drawer-items{flex:1;overflow-y:auto;padding:8px 0 20px}
+.di{display:flex;align-items:center;gap:12px;padding:13px 20px;color:#778;font-size:13px;
+  cursor:pointer;transition:all .18s;background:none;border:none;font-family:inherit;width:100%;text-align:left}
+.di:hover,.di.act{color:#e8e8ff;background:rgba(255,255,255,.03)}
+.di .ic{font-size:18px;width:22px;text-align:center}
+.dsep{height:1px;background:#141425;margin:6px 16px}
+/* ATOMS */
+.av{border-radius:50%;background:#0d0d1a;border:2px solid #00ff88;display:flex;
+  align-items:center;justify-content:center;overflow:hidden;flex-shrink:0}
+.av img{width:100%;height:100%;object-fit:cover;border-radius:50%}
+.card{background:rgba(255,255,255,.025);border:1px solid #141425;border-radius:12px;padding:16px}
+.btn-g{padding:13px;background:#00ff88;color:#000;border:none;border-radius:6px;cursor:pointer;
+  font-family:inherit;font-weight:700;font-size:14px;letter-spacing:1.5px;
+  display:flex;align-items:center;justify-content:center;gap:8px;transition:transform .1s;width:100%}
+.btn-g:active{transform:scale(.97)}
+.btn-o{padding:11px;background:transparent;border:1px solid #222;border-radius:6px;color:#778;
+  cursor:pointer;font-family:inherit;font-size:13px;letter-spacing:1px;
+  display:flex;align-items:center;justify-content:center;gap:8px;transition:all .18s;width:100%}
+.btn-o:hover{border-color:#00ff88;color:#00ff88}
+.btn-r{padding:11px;background:rgba(255,68,102,.08);border:1px solid rgba(255,68,102,.3);
+  color:#ff4466;border-radius:6px;cursor:pointer;font-family:inherit;font-size:13px;width:100%;
+  display:flex;align-items:center;justify-content:center;gap:8px}
+.ig{display:flex;flex-direction:column;gap:6px}
+.il{font-size:9px;letter-spacing:2px;color:#445}
+.inp{width:100%;padding:11px 13px;background:rgba(255,255,255,.04);border:1px solid #1a1a2e;
+  border-radius:7px;color:#e8e8ff;font-family:inherit;font-size:14px;outline:none;transition:border-color .18s}
+.inp:focus{border-color:#00ff88}
+textarea.inp{resize:none}
+select.inp{cursor:pointer}
+.ie{font-size:10px;color:#ff4466;letter-spacing:.5px;min-height:14px}
+.fs{display:flex;flex-direction:column;gap:10px}
+/* MODAL */
+.mbg{position:fixed;inset:0;z-index:300;background:rgba(7,7,16,.92);
+  display:flex;align-items:flex-end;justify-content:center;opacity:0;pointer-events:none;transition:opacity .22s}
+.mbg.show{opacity:1;pointer-events:all}
+.modal{background:#0d0d1a;border:1px solid #1a1a2e;border-radius:16px 16px 0 0;
+  padding:26px 20px 34px;width:100%;max-width:480px;display:flex;flex-direction:column;gap:13px;
+  transform:translateY(40px);transition:transform .28s;max-height:90vh;overflow-y:auto}
+.mbg.show .modal{transform:translateY(0)}
+.mt{font-size:11px;letter-spacing:3px;color:#445;text-align:center}
+/* TABS */
+.ltab{flex:1;padding:9px;background:transparent;border:1px solid #1a1a2e;border-radius:6px;
+  color:#445;font-family:inherit;font-size:11px;letter-spacing:1px;cursor:pointer;transition:all .18s}
+.ltab.active{border-color:#00ff88;color:#00ff88;background:rgba(0,255,136,.06)}
+.atab{padding:8px 12px;background:transparent;border:1px solid #1a1a2e;border-radius:6px;
+  color:#445;font-family:inherit;font-size:10px;letter-spacing:1px;cursor:pointer;
+  transition:all .18s;white-space:nowrap}
+.atab.active{border-color:#ffd60a;color:#ffd60a;background:rgba(255,214,10,.06)}
+/* PLAY HUD */
+.hud{display:flex;justify-content:space-between;align-items:center;padding:12px 14px;
+  background:rgba(255,255,255,.03);border:1px solid #111;border-radius:8px;flex-shrink:0}
+.hi{display:flex;flex-direction:column;align-items:center;gap:2px}
+.hl2{font-size:8px;letter-spacing:2px;color:#445}
+.hv{font-size:20px;font-weight:700;color:#00ff88}
+.tw{position:relative;width:52px;height:52px}
+.tw svg{position:absolute;top:0;left:0;transform:rotate(-90deg)}
+.tn{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
+  font-size:14px;font-weight:700;color:#00ff88;transition:color .3s}
+.pb{height:3px;background:#111;border-radius:2px;overflow:hidden;flex-shrink:0}
+.pf{height:100%;background:#00ff88;border-radius:2px;transition:width .4s;width:0}
+.pt{font-size:10px;color:#334;letter-spacing:1px;text-align:right;flex-shrink:0}
+.qcard{background:rgba(255,255,255,.025);border:1px solid #141425;border-radius:12px;
+  padding:20px;flex:1;overflow-y:auto;display:flex;flex-direction:column;min-height:180px}
+.qt{font-size:15px;line-height:1.65;margin-bottom:16px;color:#dde}
+.opts{display:flex;flex-direction:column;gap:9px}
+.opt{display:flex;align-items:center;gap:12px;padding:12px 14px;background:rgba(255,255,255,.04);
+  border:1px solid #1a1a2e;border-radius:8px;cursor:pointer;text-align:left;width:100%;
+  font-family:inherit;color:#ccd;font-size:14px;transition:all .18s}
+.opt[disabled]{cursor:default}
+.ol{font-weight:700;color:#445;min-width:16px;font-size:11px}
+.opt.correct{background:rgba(0,255,136,.12);border-color:#00ff88;color:#00ff88}
+.opt.wrong{background:rgba(255,68,102,.12);border-color:#ff4466;color:#ff4466}
+.opt.dim{opacity:.35}
+.opt.sel{border-color:#8888ff;background:rgba(100,100,255,.12);color:#8888ff}
+.expl{margin-top:13px;padding:11px 13px;background:rgba(255,204,0,.06);
+  border:1px solid rgba(255,204,0,.2);border-radius:8px;font-size:11px;color:#998;
+  line-height:1.6;display:flex;gap:8px}
+/* RESULT */
+.rbig{font-size:64px;font-weight:900;color:#00ff88;line-height:1;text-align:center}
+.rbar-w{height:4px;background:#111;border-radius:2px;overflow:hidden}
+.rbar{height:100%;border-radius:2px;transition:width 1s;width:0}
+.rstats{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px}
+.rsbox{background:rgba(255,255,255,.025);border:1px solid #141425;border-radius:8px;padding:12px 8px;text-align:center}
+/* PROFILE */
+.ph{background:rgba(255,255,255,.02);border:1px solid #141425;border-radius:14px;
+  padding:14px 14px 12px;display:flex;flex-direction:column;align-items:center;gap:0;
+  position:relative;overflow:hidden}
+.pwp{position:absolute;inset:0;background-size:cover;background-position:center;opacity:.18;z-index:0}
+.pc{position:relative;z-index:1;display:flex;flex-direction:column;align-items:center;gap:5px;width:100%;padding-top:8px}
+.psg{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:2px}
+.ps{background:rgba(255,255,255,.025);border:1px solid #141425;border-radius:9px;
+  padding:14px;display:flex;flex-direction:column;gap:3px}
+.psv{font-size:22px;font-weight:700;color:#00ff88}
+.psl{font-size:9px;letter-spacing:2px;color:#445}
+/* LB */
+.lbi{display:flex;align-items:center;gap:11px;padding:11px 13px;
+  background:rgba(255,255,255,.02);border:1px solid #141425;border-radius:9px;margin-bottom:7px}
+.lbi.me{border-color:rgba(0,255,136,.3);background:rgba(0,255,136,.04)}
+.lbr{font-size:14px;font-weight:700;color:#445;min-width:26px;text-align:center}
+.lbr.g{color:#ffd700}.lbr.s{color:#c0c0c0}.lbr.b{color:#cd7f32}
+.lbav{width:34px;height:34px;border-radius:50%;border:1px solid #1a1a2e;background:#0d0d1a;
+  display:flex;align-items:center;justify-content:center;font-size:16px;overflow:hidden;flex-shrink:0}
+.lbav img{width:100%;height:100%;object-fit:cover;border-radius:50%}
+.lbsc{font-size:15px;font-weight:700;color:#00ff88}
+/* SETTINGS */
+.ss{border-bottom:1px solid #0d0d1a;padding-bottom:16px;margin-bottom:16px}
+.ssl{font-size:9px;letter-spacing:3px;color:#445;margin-bottom:10px}
+.eg{display:grid;grid-template-columns:repeat(8,1fr);gap:6px;margin-top:6px}
+.eo{font-size:20px;padding:5px;border-radius:6px;border:1px solid transparent;
+  cursor:pointer;text-align:center;background:none;transition:all .15s}
+.eo.sel{border-color:#00ff88;background:rgba(0,255,136,.08)}
+.wp-prev{width:100%;height:70px;border-radius:10px;border:1px solid #1a1a2e;
+  overflow:hidden;margin-bottom:10px;background:#0d0d1a;cursor:pointer;position:relative}
+.wp-img{position:absolute;inset:0;background-size:cover;background-position:center}
+.wp-lbl{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
+  font-size:11px;color:#445;letter-spacing:1px}
+/* ADMIN */
+.agrid{display:grid;grid-template-columns:1fr 1fr;gap:9px}
+.ast{background:rgba(255,255,255,.025);border:1px solid #141425;border-radius:9px;padding:14px}
+.asv{font-size:26px;font-weight:700;color:#00ff88}
+.asl{font-size:9px;color:#445;letter-spacing:2px;margin-top:2px}
+.aur{display:flex;align-items:center;justify-content:space-between;padding:10px 13px;
+  background:rgba(255,255,255,.02);border:1px solid #141425;border-radius:8px;margin-bottom:7px}
+.src{font-size:9px;padding:2px 6px;border-radius:3px;font-weight:700;letter-spacing:1px}
+.src.tg{background:rgba(0,120,255,.15);color:#4488ff}
+.src.web{background:rgba(0,255,136,.1);color:#00ff88}
+.ib{width:32px;height:32px;border-radius:6px;border:1px solid #1a1a2e;background:transparent;
+  color:#445;cursor:pointer;font-size:14px;display:flex;align-items:center;justify-content:center;transition:all .18s}
+.ib:hover{border-color:#00ff88;color:#00ff88}
+.ib.del:hover{border-color:#ff4466;color:#ff4466}
+/* GAME */
+.pr{display:flex;align-items:center;justify-content:space-between;
+  padding:10px 13px;background:rgba(255,255,255,.02);border:1px solid #141425;border-radius:8px;margin-bottom:6px}
+.gtile{background:rgba(255,255,255,.025);border:1px solid #141425;border-radius:12px;
+  padding:18px 10px;display:flex;flex-direction:column;align-items:center;gap:8px;
+  cursor:pointer;text-align:center;transition:all .18s}
+.gtile:active{border-color:#00ff88}
+/* MISC */
+.stitle{font-size:10px;letter-spacing:3px;color:#445;margin-bottom:8px}
+.hi-item{display:flex;justify-content:space-between;align-items:center;
+  padding:10px 13px;background:rgba(255,255,255,.02);border:1px solid #141425;border-radius:8px;margin-bottom:7px}
+.tc{display:flex;align-items:center;gap:12px;padding:13px;background:rgba(255,255,255,.025);
+  border:1px solid #141425;border-radius:10px;cursor:pointer;transition:all .18s;margin-bottom:8px}
+.tc:active{border-color:#00ff88}
+.empty{text-align:center;color:#334;font-size:12px;padding:32px;letter-spacing:1px}
+.divider{height:1px;background:#0d0d1a;margin:4px 0}
+.rti{position:fixed;top:8px;right:12px;z-index:50;display:flex;align-items:center;gap:5px;font-size:9px;color:#445}
+.rtd{width:7px;height:7px;border-radius:50%;background:#334}
+.rtd.on{background:#00ff88;box-shadow:0 0 5px #00ff88}
+.badge-admin{font-size:9px;padding:1px 6px;border-radius:3px;background:rgba(255,214,10,.15);
+  color:#ffd60a;letter-spacing:1px;flex-shrink:0;display:inline-flex;align-items:center}
+.toast{position:fixed;bottom:80px;left:50%;transform:translateX(-50%);background:#1a1a2e;
+  border:1px solid #00ff88;color:#00ff88;padding:10px 20px;border-radius:8px;font-size:12px;
+  letter-spacing:1px;z-index:500;opacity:0;transition:opacity .3s;white-space:nowrap;pointer-events:none}
+.toast.show{opacity:1}
+.particle{position:fixed;width:8px;height:8px;border-radius:50%;pointer-events:none;z-index:999;animation:pop .9s forwards ease-out}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
+@keyframes spin{to{transform:rotate(360deg)}}
+@keyframes gridPulse{0%,100%{opacity:.6}50%{opacity:1}}
+@keyframes fadeSlogan{from{opacity:.3}to{opacity:.8}}
+@keyframes fadeIn{from{opacity:0}to{opacity:1}}
+@keyframes pop{0%{transform:translate(0,0)scale(1);opacity:1}100%{transform:translate(var(--dx),var(--dy))scale(0);opacity:0}}
+::-webkit-scrollbar{width:2px}
+::-webkit-scrollbar-thumb{background:#1a1a2e;border-radius:2px}
+</style>
+</head>
+<body>
+<div id="initLoader" style="position:fixed;inset:0;z-index:9999;background:#070710;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:0;overflow:hidden">
+
+  <!-- Grid фон -->
+  <div style="position:absolute;inset:0;
+    background-image:linear-gradient(rgba(0,255,136,.05)1px,transparent 1px),linear-gradient(90deg,rgba(0,255,136,.05)1px,transparent 1px);
+    background-size:40px 40px;animation:gridPulse 3s ease-in-out infinite"></div>
+
+  <!-- Сақина анимациясы -->
+  <div style="position:relative;width:120px;height:120px;margin-bottom:28px">
+    <svg viewBox="0 0 120 120" style="width:120px;height:120px;animation:spin 2s linear infinite">
+      <circle cx="60" cy="60" r="50" fill="none" stroke="#1a1a2e" stroke-width="6"/>
+      <circle cx="60" cy="60" r="50" fill="none" stroke="#00ff88" stroke-width="6"
+        stroke-linecap="round" stroke-dasharray="80 235" style="filter:drop-shadow(0 0 8px #00ff88)"/>
+    </svg>
+    <div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
+      font-size:36px;font-weight:900;letter-spacing:-2px">
+      <span style="color:#00ff88">Q</span><span style="color:#e8e8ff">B</span>
+    </div>
+  </div>
+
+  <!-- Логотип -->
+  <div style="font-size:32px;font-weight:900;letter-spacing:-2px;position:relative;z-index:1">
+    <span style="color:#00ff88">Q</span><span style="color:#e8e8ff">Bit</span>
+    <span style="font-size:14px;font-weight:400;color:#334;letter-spacing:4px;margin-left:4px">Quiz</span>
+  </div>
+
+  <!-- Слоган -->
+  <p style="font-size:10px;color:#334;letter-spacing:3px;margin-top:10px;position:relative;z-index:1;
+    animation:fadeSlogan 1.5s ease-in-out infinite alternate">БІЛІМДІ БИТКЕ БӨЛІП, ЖЕҢІСКЕ ЖИНА</p>
+</div>
+<div class="rti" id="rti" style="display:none"><div class="rtd" id="rtd"></div><span id="rtl">—</span></div>
+
+<!-- DRAWER -->
+<div class="dbg" id="dbg" onclick="closeDrawer()"></div>
+<div class="drawer" id="drawer">
+  <div class="du">
+    <div class="av" id="dav" style="width:44px;height:44px;font-size:22px">👤</div>
+    <div style="flex:1;min-width:0">
+      <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">
+        <p style="font-size:14px;font-weight:700;color:#e8e8ff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" id="dname">—</p>
+        <span class="badge-admin" id="adminBadge" style="display:none">🛡️ ADMIN</span>
+      </div>
+      <p style="font-size:10px;color:#445;margin-top:2px" id="dhandle"></p>
+    </div>
+  </div>
+  <div class="drawer-items">
+    <button class="di" onclick="dgo('profile')"><span class="ic">👤</span>Бейін</button>
+    <button class="di" onclick="dgo('leaderboard')"><span class="ic">🏆</span>Рейтинг</button>
+    <button class="di" onclick="dgo('game')"><span class="ic">🎮</span>Ойын</button>
+    <div class="dsep"></div>
+    <button class="di" onclick="dgo('settings')"><span class="ic">⚙️</span>Баптаулар</button>
+    <button class="di" id="adminDBtn" style="display:none;color:#ffd60a" onclick="dgo('admin')">
+      <span class="ic">🛡️</span>Әкімші тақтасы</button>
+  </div>
+</div>
+
+<!-- ═══ AUTH (тек web браузер үшін) ═══ -->
+<div id="s-auth" class="screen">
+  <div class="si" style="justify-content:center;min-height:100vh;padding-bottom:0">
+    <div style="text-align:center;margin-bottom:20px">
+      <div style="font-size:44px;font-weight:900;letter-spacing:-2px">
+        <span style="color:#00ff88">Q</span><span style="color:#e8e8ff">Bit</span></div>
+      <p style="font-size:10px;color:#445;letter-spacing:3px;margin-top:4px">БІЛІМДІ БИТКЕ БӨЛІП, ЖЕҢІСКЕ ЖИНА</p>
+    </div>
+    <div style="display:flex;gap:8px;margin-bottom:4px">
+      <button class="ltab active" id="tab-l" onclick="authTab('l')">Кіру</button>
+      <button class="ltab" id="tab-r" onclick="authTab('r')">Тіркелу</button>
+    </div>
+    <!-- LOGIN -->
+    <div id="vL" class="fs">
+      <div class="ig"><span class="il">ПАЙДАЛАНУШЫ АТЫ</span>
+        <input class="inp" id="lU" type="text" placeholder="QuizMaster" autocomplete="username"></div>
+      <div class="ig"><span class="il">ҚҰПИЯСӨЗ</span>
+        <input class="inp" id="lP" type="password" placeholder="••••••••"></div>
+      <div class="ie" id="lErr"></div>
+      <button class="btn-g" onclick="doLogin()">→ КІРУ</button>
+      <button class="btn-o" style="font-size:11px" onclick="authTab('f')">Құпиясөзді ұмыттыңыз ба?</button>
+    </div>
+    <!-- REGISTER -->
+    <div id="vR" class="fs" style="display:none">
+      <div class="ig">
+        <span class="il">СУРЕТ (міндетті емес)</span>
+        <div style="display:flex;align-items:center;gap:14px;margin-top:6px">
+          <div class="av" id="rAvPrev" style="width:60px;height:60px;font-size:26px;border-width:1.5px">👤</div>
+          <div style="flex:1;display:flex;flex-direction:column;gap:7px">
+            <button type="button" class="btn-o" style="font-size:11px" onclick="document.getElementById('rImgF').click()">📷 Сурет таңдау</button>
+            <input type="file" id="rImgF" accept="image/*" style="display:none" onchange="onRImg(this)">
+            <button type="button" class="btn-r" id="rRemAv" style="display:none;font-size:10px;padding:7px" onclick="rmRImg()">✕ Өшіру</button>
+          </div>
+        </div>
+      </div>
+      <div class="ig">
+        <span class="il">EMOJI-КЕЙІПКЕР (сурет жоқ болса)</span>
+        <div class="eg" id="regEG"></div>
+      </div>
+      <div class="ig"><span class="il">ПАЙДАЛАНУШЫ АТЫ *</span>
+        <input class="inp" id="rU" type="text" placeholder="QuizMaster" maxlength="30"></div>
+      <div class="ig"><span class="il">@ЛАҚАП АТЫ</span>
+        <input class="inp" id="rH" type="text" placeholder="@alias" maxlength="30"></div>
+      <div class="ig"><span class="il">ТУҒАН КҮН</span>
+        <input class="inp" id="rB" type="date"></div>
+      <div class="ig"><span class="il">ӨЗІ ЖАЙЛЫ</span>
+        <textarea class="inp" id="rBio" placeholder="Өзіңіз жайлы..." maxlength="200" rows="3"></textarea></div>
+      <div class="ig"><span class="il">ҚҰПИЯСӨЗ * (6+ таңба)</span>
+        <input class="inp" id="rP" type="password" placeholder="••••••••" autocomplete="new-password"></div>
+      <div class="ig"><span class="il">ҚҰПИЯСӨЗДІ ҚАЙТАЛАҢЫЗ *</span>
+        <input class="inp" id="rP2" type="password" placeholder="••••••••"></div>
+      <div class="ie" id="rErr"></div>
+      <button class="btn-g" onclick="doReg()">✓ ТІРКЕЛУ</button>
+    </div>
+    <!-- FORGOT -->
+    <div id="vF" class="fs" style="display:none">
+      <p style="font-size:12px;color:#556;text-align:center;line-height:1.6">Пайдаланушы атыңызды енгізіңіз</p>
+      <div class="ig"><span class="il">ПАЙДАЛАНУШЫ АТЫ</span><input class="inp" id="fU" type="text"></div>
+      <div class="ie" id="fErr"></div>
+      <button class="btn-g" onclick="doForgot()">📩 ЖІБЕРУ</button>
+      <button class="btn-o" onclick="authTab('l')">← Артқа</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ HOME ═══ -->
+<div id="s-home" class="screen">
+  <div class="si">
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 0 4px">
+      <span style="font-size:20px;font-weight:700;color:#00ff88;letter-spacing:-1px">QBit</span>
+      <button class="btn-o" style="width:auto;padding:8px 14px;font-size:11px" onclick="openDrawer()">☰ Мәзір</button>
+    </div>
+    <div style="text-align:center;padding:12px 0 6px">
+      <div style="font-size:44px;font-weight:900;letter-spacing:-2px">
+        <span style="color:#00ff88">Q</span>Bit Quiz</div>
+      <p style="font-size:10px;color:#445;letter-spacing:2px;margin-top:5px">БІЛІМДІ БИТКЕ БӨЛІП, ЖЕҢІСКЕ ЖИНА</p>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+      <div class="gtile" onclick="pickTest('quiz')">
+        <div style="font-size:30px">🎯</div>
+        <div style="font-size:12px;font-weight:700;color:#e8e8ff">Куиз</div>
+        <div style="font-size:10px;color:#445">Жедел байланыс</div>
+      </div>
+      <div class="gtile" onclick="pickTest('test')">
+        <div style="font-size:30px">📝</div>
+        <div style="font-size:12px;font-weight:700;color:#e8e8ff">Тест</div>
+        <div style="font-size:10px;color:#445">Қорытынды бағалау</div>
+      </div>
+      <div class="gtile" onclick="navTo('game')">
+        <div style="font-size:30px">🎮</div>
+        <div style="font-size:12px;font-weight:700;color:#e8e8ff">Ойын</div>
+        <div style="font-size:10px;color:#445">Жарыс форматы</div>
+      </div>
+      <div class="gtile" onclick="navTo('leaderboard')">
+        <div style="font-size:30px">🏆</div>
+        <div style="font-size:12px;font-weight:700;color:#e8e8ff">Рейтинг</div>
+        <div style="font-size:10px;color:#445">Үздік ойыншылар</div>
+      </div>
+    </div>
+    <div class="card" id="homeCard" style="display:none">
+      <div style="display:flex;align-items:center;gap:12px">
+        <div class="av" id="homeAv" style="width:44px;height:44px;font-size:22px;border-width:1.5px">👤</div>
+        <div>
+          <div style="display:flex;align-items:center;gap:6px">
+            <p style="font-size:14px;font-weight:700" id="homeName">—</p>
+            <span class="badge-admin" id="homeBadge" style="display:none">🛡️</span>
+          </div>
+          <p style="font-size:10px;color:#445;margin-top:2px" id="homeStats">—</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ LIBRARY ═══ -->
+<div id="s-library" class="screen">
+  <div class="si">
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 0 4px">
+      <span style="font-size:20px;font-weight:700;color:#00ff88;letter-spacing:-1px">Кітапхана</span></div>
+    <div style="display:flex;gap:8px">
+      <button class="ltab active" id="la" onclick="libF('all')">Барлығы</button>
+      <button class="ltab" id="lq" onclick="libF('quiz')">Куиз</button>
+      <button class="ltab" id="lt" onclick="libF('test')">Тест</button>
+    </div>
+    <div id="libList"></div>
+  </div>
+</div>
+
+<!-- ═══ QUIZ play ═══ -->
+<div id="s-quiz" class="screen" style="padding-bottom:0">
+  <div style="width:100%;max-width:480px;padding:12px 16px 16px;display:flex;flex-direction:column;gap:10px;height:100%">
+    <div class="hud">
+      <div class="hi"><span class="hl2">ҰПАЙ</span><span class="hv" id="qSc">0</span></div>
+      <div class="tw">
+        <svg width="52" height="52" viewBox="0 0 52 52">
+          <circle cx="26" cy="26" r="22" fill="none" stroke="#1a1a2e" stroke-width="4"/>
+          <circle id="qArc" cx="26" cy="26" r="22" fill="none" stroke="#00ff88" stroke-width="4" stroke-linecap="round" stroke-dasharray="138.23 138.23"/>
+        </svg>
+        <div class="tn" id="qTN">20</div>
+      </div>
+      <div class="hi"><span class="hl2">🔥 СЕРИЯ</span><span class="hv" id="qStr">0</span></div>
+    </div>
+    <div class="pb"><div class="pf" id="qPF"></div></div>
+    <p class="pt" id="qPT">0/0</p>
+    <div class="qcard" id="qCard"></div>
+  </div>
+</div>
+
+<!-- ═══ TEST play ═══ -->
+<div id="s-test" class="screen" style="padding-bottom:0">
+  <div style="width:100%;max-width:480px;padding:12px 16px 16px;display:flex;flex-direction:column;gap:10px;height:100%">
+    <div class="hud">
+      <div class="hi"><span class="hl2">СҰРАҚ</span><span class="hv" id="tQ">1</span></div>
+      <div class="tw">
+        <svg width="52" height="52" viewBox="0 0 52 52">
+          <circle cx="26" cy="26" r="22" fill="none" stroke="#1a1a2e" stroke-width="4"/>
+          <circle id="tArc" cx="26" cy="26" r="22" fill="none" stroke="#8888ff" stroke-width="4" stroke-linecap="round" stroke-dasharray="138.23 138.23"/>
+        </svg>
+        <div class="tn" id="tTN" style="color:#8888ff">30</div>
+      </div>
+      <div class="hi"><span class="hl2">ЖАУАП</span><span class="hv" id="tAns">0</span></div>
+    </div>
+    <div class="pb"><div class="pf" id="tPF" style="background:#8888ff"></div></div>
+    <p class="pt" id="tPT">0/0</p>
+    <div class="qcard" id="tCard"></div>
+    <button class="btn-g" id="tNext" style="display:none" onclick="tNextQ()">Келесі →</button>
+    <button class="btn-g" id="tFin" style="display:none;background:#8888ff" onclick="tFinish()">✓ Аяқтау</button>
+  </div>
+</div>
+
+<!-- ═══ RESULT ═══ -->
+<div id="s-result" class="screen">
+  <div class="si">
+    <div style="padding:10px 0 4px"><span style="font-size:20px;font-weight:700;color:#00ff88">Нәтиже</span></div>
+    <div class="card" style="text-align:center;display:flex;flex-direction:column;gap:12px">
+      <p id="resRank" style="font-size:13px;letter-spacing:2px;color:#556"></p>
+      <div class="rbig" id="resScore">0</div>
+      <p style="font-size:11px;color:#445;letter-spacing:2px" id="resPct">ҰПАЙ</p>
+      <div class="rbar-w"><div class="rbar" id="resBar"></div></div>
+    </div>
+    <div class="rstats" id="resStats"></div>
+    <div id="resAn" style="display:none">
+      <p class="stitle">ТОЛЫҚ ТАЛДАУ</p>
+      <div id="resAnList"></div>
+    </div>
+    <button class="btn-g" id="resReplay">🔄 Қайта ойна</button>
+    <button class="btn-o" onclick="navTo('home')">← Басты бет</button>
+  </div>
+</div>
+
+<!-- ═══ GAME ═══ -->
+<div id="s-game" class="screen">
+  <div class="si">
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 0 4px">
+      <span style="font-size:20px;font-weight:700;color:#00ff88">Ойын</span>
+      <div style="display:flex;align-items:center;gap:6px;font-size:9px;color:#445">
+        <div class="rtd" id="gStatusDot"></div><span id="gStatusLbl">—</span></div>
+    </div>
+    <div id="gJoin">
+      <p class="stitle">ОЙЫНҒА ҚОСЫЛУ</p>
+      <div class="ig" style="margin-bottom:10px"><span class="il">КОД (6 таңба)</span>
+        <input class="inp" id="gCode" type="text" maxlength="6" placeholder="ABC123"
+          style="text-transform:uppercase;letter-spacing:4px;font-size:20px;text-align:center"></div>
+      <div class="ig" style="margin-bottom:10px"><span class="il">ЛАҚАП АТЫ</span>
+        <input class="inp" id="gNick" type="text" maxlength="20" placeholder="QuizHero"></div>
+      <button class="btn-g" onclick="joinGame()">→ ҚОСЫЛУ</button>
+    </div>
+    <div id="gLobby" style="display:none">
+      <div style="font-size:36px;font-weight:700;letter-spacing:8px;color:#00ff88;text-align:center;
+        background:rgba(0,255,136,.06);border:1px solid rgba(0,255,136,.2);border-radius:10px;padding:16px;margin-bottom:10px" id="gLCode">———</div>
+      <p style="text-align:center;font-size:11px;color:#445;letter-spacing:1px;margin-bottom:10px">Ойын басталуын күтіңіз…</p>
+      <p class="stitle">ҚАТЫСУШЫЛАР</p>
+      <div id="gPlayers"></div>
+    </div>
+    <div id="gPlay" style="display:none">
+      <p style="text-align:center;font-size:11px;color:#445;letter-spacing:2px;margin-bottom:6px" id="gQNum">Сұрақ 1</p>
+      <div style="font-size:48px;font-weight:700;color:#00ff88;text-align:center;font-family:monospace;margin-bottom:8px" id="gTimer">20</div>
+      <div class="qcard" id="gQCard"></div>
+      <div id="gBoard" style="margin-top:10px"></div>
+    </div>
+    <div id="gFin" style="display:none">
+      <p class="stitle" style="text-align:center;margin-bottom:12px">🏆 ОЙЫН АЯҚТАЛДЫ</p>
+      <div id="gFinBoard"></div>
+      <button class="btn-o" style="margin-top:12px" onclick="resetGame()">← Шығу</button>
+    </div>
+    <div class="divider"></div>
+    <p class="stitle">БАРЛЫҒЫНА АШЫҚ ОЙЫНДАР</p>
+    <p style="font-size:11px;color:#556;margin-bottom:8px;line-height:1.6">Әкімші дайындаған — кез-келген уақытта ойнауға болады</p>
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px" id="builtins"></div>
+  </div>
+</div>
+
+<!-- ═══ LEADERBOARD ═══ -->
+<div id="s-leaderboard" class="screen">
+  <div class="si">
+    <div style="padding:10px 0 4px"><span style="font-size:20px;font-weight:700;color:#00ff88">Рейтинг</span></div>
+    <div style="display:flex;gap:7px">
+      <button class="ltab active" data-p="all" onclick="lbSw('all')">Барлық</button>
+      <button class="ltab" data-p="week" onclick="lbSw('week')">Апта</button>
+      <button class="ltab" data-p="today" onclick="lbSw('today')">Бүгін</button>
+    </div>
+    <div id="lbList"></div>
+  </div>
+</div>
+
+<!-- ═══ PROFILE ═══ -->
+<div id="s-profile" class="screen">
+  <div class="si">
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 0 4px">
+      <span style="font-size:20px;font-weight:700;color:#00ff88">Бейін</span>
+      <button class="ib" onclick="navTo('settings')">⚙️</button>
+    </div>
+    <!-- Профиль header — тұсқағаз + аватар + ақпарат -->
+    <div class="ph">
+      <div class="pwp" id="pWP"></div>
+      <div class="pc">
+        <!-- Аватар + өңдеу батырмасы -->
+        <div style="position:relative;display:inline-block;margin-bottom:4px">
+          <div class="av" id="pAv" style="width:76px;height:76px;font-size:34px;border-width:2.5px">👤</div>
+          <button onclick="navTo('settings')"
+            style="position:absolute;bottom:2px;right:2px;width:22px;height:22px;border-radius:50%;
+            background:#00ff88;border:2px solid #070710;cursor:pointer;font-size:11px;
+            display:flex;align-items:center;justify-content:center;color:#000;line-height:1">✏️</button>
+        </div>
+        <!-- Аты + Admin белгісі -->
+        <div style="display:flex;align-items:center;justify-content:center;gap:6px;flex-wrap:wrap">
+          <p style="font-size:18px;font-weight:700;color:#e8e8ff;line-height:1.2;text-align:center" id="pName">—</p>
+          <span id="pAdminBadge" style="display:none;font-size:9px;padding:2px 7px;border-radius:10px;
+            background:rgba(255,214,10,.15);border:1px solid rgba(255,214,10,.3);
+            color:#ffd60a;letter-spacing:1px;white-space:nowrap;flex-shrink:0">🛡️ ADMIN</span>
+        </div>
+        <!-- Лақап аты -->
+        <p style="font-size:11px;color:#556;letter-spacing:1px" id="pHandle"></p>
+        <!-- Bio -->
+        <p style="font-size:12px;color:#667;text-align:center;max-width:270px;line-height:1.5;display:none" id="pBio"></p>
+        <!-- Деңгей белгісі -->
+        <p style="font-size:10px;color:#00ff88;letter-spacing:1px;margin-top:0" id="pBadge">🌱 Жаңадан</p>
+      </div>
+    </div>
+    <div class="psg">
+      <div class="ps"><span class="psv" id="psG">0</span><span class="psl">ОЙЫНДАР</span></div>
+      <div class="ps"><span class="psv" id="psB">0</span><span class="psl">ЕҢ ЖОҒАРЫ</span></div>
+      <div class="ps"><span class="psv" id="psA">0%</span><span class="psl">ОРТАША %</span></div>
+      <div class="ps"><span class="psv" id="psSt">0</span><span class="psl">РЕКОРД 🔥</span></div>
+    </div>
+    <p class="stitle">СОҢҒЫ ОЙЫНДАР</p>
+    <div id="pHist"></div>
+  </div>
+</div>
+
+<!-- ═══ SETTINGS ═══ -->
+<div id="s-settings" class="screen" style="overflow-y:scroll;-webkit-overflow-scrolling:touch;overscroll-behavior:contain">
+  <div class="si" style="padding-bottom:140px;min-height:100%">
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 0 4px">
+      <button class="btn-o" style="width:auto;padding:7px 12px;font-size:11px" onclick="navTo('profile')">←</button>
+      <span style="font-size:20px;font-weight:700;color:#00ff88">Баптаулар</span>
+    </div>
+    <!-- АВАТАР -->
+    <div class="ss">
+      <p class="ssl">БЕЙІН СУРЕТІ</p>
+      <div style="display:flex;align-items:center;gap:16px;margin-bottom:12px">
+        <div class="av" id="sAvPrev" style="width:68px;height:68px;font-size:28px;border-width:2px">👤</div>
+        <div style="flex:1;display:flex;flex-direction:column;gap:8px">
+          <button class="btn-o" style="font-size:11px" onclick="document.getElementById('sImgF').click()">📷 Файлдан жүктеу</button>
+          <input type="file" id="sImgF" accept="image/*" style="display:none" onchange="onSImg(this)">
+          <button class="btn-o" id="tgPhBtn" style="font-size:11px;display:none" onclick="pickTgPh()">✈️ Telegram суретін қою</button>
+          <button class="btn-r" style="font-size:11px;padding:9px" onclick="rmSAv()">✕ Суретті өшіру</button>
+        </div>
+      </div>
+      <div id="tgPhPicker" style="display:none;margin-bottom:10px">
+        <p class="il" style="margin-bottom:8px">TELEGRAM СУРЕТТЕРІН ТАҢДАҢЫЗ</p>
+        <div id="tgPhList" style="display:flex;gap:8px;flex-wrap:wrap"></div>
+      </div>
+      <p class="il" style="margin-bottom:6px">EMOJI-КЕЙІПКЕР (сурет болмаса)</p>
+      <div class="eg" id="setEG"></div>
+      <div class="ie" id="sAvErr" style="margin-top:6px"></div>
+    </div>
+    <!-- ТҰСҚАҒАЗ -->
+    <div class="ss">
+      <p class="ssl">ТҰСҚАҒАЗ</p>
+      <div class="wp-prev" onclick="document.getElementById('sWpF').click()">
+        <div class="wp-img" id="sWpImg"></div>
+        <div class="wp-lbl" id="sWpLbl">Тұсқағаз таңдаңыз ↑</div>
+      </div>
+      <input type="file" id="sWpF" accept="image/*" style="display:none" onchange="onSWp(this)">
+      <div style="display:flex;gap:8px">
+        <button class="btn-o" style="font-size:11px" onclick="document.getElementById('sWpF').click()">🖼️ Жүктеу</button>
+        <button class="btn-r" style="font-size:11px" onclick="rmSWp()">✕ Өшіру</button>
+      </div>
+      <div class="ie" id="sWpErr" style="margin-top:6px"></div>
+    </div>
+    <!-- ДЕРЕКТЕР -->
+    <div class="ss">
+      <p class="ssl">БЕЙІН ДЕРЕКТЕРІ</p>
+      <div class="fs">
+        <div class="ig"><span class="il">ПАЙДАЛАНУШЫ АТЫ</span><input class="inp" id="sUser" type="text"></div>
+        <div class="ig"><span class="il">@ЛАҚАП АТЫ</span><input class="inp" id="sHandle" type="text"></div>
+        <div class="ig"><span class="il">ТУҒАН КҮН</span><input class="inp" id="sBirth" type="date"></div>
+        <div class="ig"><span class="il">ӨЗІ ЖАЙЛЫ</span><textarea class="inp" id="sBio" rows="3" maxlength="200"></textarea></div>
+        <div class="ie" id="sProfErr"></div>
+        <button class="btn-g" onclick="saveProf()">💾 САҚТАУ</button>
+      </div>
+    </div>
+    <!-- ҚҰПИЯСӨЗ -->
+    <div class="ss" id="sPwdSec">
+      <p class="ssl">ҚҰПИЯСӨЗДІ ӨЗГЕРТУ</p>
+      <div class="fs">
+        <div class="ig"><span class="il">АҒЫМДАҒЫ</span><input class="inp" id="sOld" type="password"></div>
+        <div class="ig"><span class="il">ЖАҢА (6+ таңба)</span><input class="inp" id="sNew" type="password"></div>
+        <div class="ig"><span class="il">ҚАЙТАЛАҢЫЗ</span><input class="inp" id="sNew2" type="password"></div>
+        <div class="ie" id="sPwdErr"></div>
+        <button class="btn-o" onclick="chPwd()">🔒 ӨЗГЕРТУ</button>
+      </div>
+    </div>
+    <!-- ТІРКЕЛГІ -->
+    <div style="display:flex;flex-direction:column;gap:8px">
+      <p class="ssl">ТІРКЕЛГІ БАПТАУЛАРЫ</p>
+      <button class="btn-o" onclick="doLogout()">🚪 Жүйеден шығу</button>
+      <button class="btn-r" onclick="confirmDel()">🗑️ Тіркелгіні жою</button>
+      <p style="font-size:10px;color:#334;line-height:1.6">⚠️ Тіркелгіні жойсаңыз барлық деректеріңіз мәңгілікке өшіріледі.</p>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ ADMIN ═══ -->
+<div id="s-admin" class="screen" style="overflow-y:auto;-webkit-overflow-scrolling:touch">
+  <div class="si" style="padding-bottom:140px;min-height:100%">
+    <div style="padding:10px 0 4px">
+      <span style="font-size:20px;font-weight:700;color:#ffd60a">🛡️ Әкімші тақтасы</span></div>
+    <div style="display:flex;gap:6px;flex-wrap:wrap">
+      <button class="atab active" id="at-stats"  onclick="aTab('stats')">📊 Статистика</button>
+      <button class="atab"        id="at-tests"  onclick="aTab('tests')">📚 Тесттер</button>
+      <button class="atab"        id="at-games"  onclick="aTab('games')">🎮 Ойындар</button>
+      <button class="atab"        id="at-users"  onclick="aTab('users')">👥 Қолданушылар</button>
+      <button class="atab"        id="at-recent" onclick="aTab('recent')">🕐 Соңғы</button>
+    </div>
+    <div id="aContent"></div>
+  </div>
+</div>
+
+<!-- BNAV -->
+<nav class="bnav" id="bnav">
+  <button class="nb active" data-s="home"    onclick="navTo('home')">   <span class="nb-i">🏠</span><span>Үй</span></button>
+  <button class="nb"        data-s="library" onclick="navTo('library')"><span class="nb-i">📚</span><span>Кітапхана</span></button>
+  <button class="nb"                         onclick="pickTest('quiz')"><span class="nb-i">🎯</span><span>Куиз</span></button>
+  <button class="nb"                         onclick="openDrawer()">   <span class="nb-i">☰</span><span>Мәзір</span></button>
+</nav>
+<div class="toast" id="toast"></div>
+
+<script>
+// ══════════════════════════════════════════════════════
+const tg = window.Telegram?.WebApp;
+if(tg){ tg.ready(); tg.expand(); }
+tg?.BackButton?.onClick(()=>{
+  closeDrawer();
+  if(!['home','library','leaderboard','profile','game'].includes(AS)) navTo('home');
+});
+
+const EMOJIS=['🐶','🐱','🦊','🐼','🐨','🦁','🐯','🐸','🦋','🌟','🔥','⚡','🎯','🏆','💎','🌈','🚀','🎮','🎵','🌙'];
+const CIRC=2*Math.PI*22;
+let CU=null,AT=null,AS='auth';
+let PS={},GS={};
+let lbP='all',libM='all';
+let selEmoji=null,sAvB64=null,sWpB64=null,rAvB64=null;
+
+function isAdmin(){
+  if(!CU) return false;
+  return CU.is_admin === true;
+}
+
+// ── API ──────────────────────────────────────────────
+async function api(ep,body,auth=true){
+  const h={'Content-Type':'application/json'};
+  if(auth&&AT) h['Authorization']='Bearer '+AT;
+  const r=await fetch('/api/'+ep,{method:'POST',headers:h,body:JSON.stringify(body)});
+  const j=await r.json();
+  if(!j.ok) throw new Error(j.error||'err');
+  return j.data;
+}
+const aApi=(a,p)=>api('auth',{action:a,payload:p},false);
+const dbApi=(a,p)=>api('db',{action:a,payload:p},true);
+
+// ── INIT ─────────────────────────────────────────────
+// Telegram Mini App-та auth экраны МҮЛДЕ шықпауы керек
+// Тек web браузерде ғана шығады
+async function init(){
+  buildEG('regEG'); buildEG('setEG');
+
+  function hideLoader(){ document.getElementById('initLoader')?.remove(); }
+
+  // 1. Бар session-ды тексеру (жылдам)
+  const tok=localStorage.getItem('qbit_tok');
+  if(tok){
+    AT=tok;
+    try{
+      const r=await aApi('verify_session',{token:tok});
+      CU=r.user; hideLoader(); go(); return;
+    }catch(e){
+      localStorage.removeItem('qbit_tok'); AT=null;
+    }
+  }
+
+  // 2. Telegram Mini App — initData арқылы (TG қолданушысы ТІРКЕЛУ/КІРУ ЭКРАНЫН КӨРМЕЙДІ)
+  const isTG = !!(tg?.initData && tg.initData.length>10);
+  if(isTG){
+    try{
+      const r=await aApi('telegram_auth',{initData:tg.initData});
+      sess(r); hideLoader(); go(); return;
+    }catch(e){
+      console.error('[TG auth]',e.message);
+      hideLoader();
+      // TG-да тек retry экраны — auth формасы ЖОҚ
+      document.body.innerHTML=`
+        <div style="height:100vh;display:flex;flex-direction:column;align-items:center;
+          justify-content:center;gap:20px;padding:24px;text-align:center;
+          background:#070710;font-family:monospace">
+          <div style="font-size:52px;font-weight:900;letter-spacing:-3px">
+            <span style="color:#00ff88">Q</span><span style="color:#e8e8ff">Bit</span></div>
+          <p style="font-size:13px;color:#ff4466;letter-spacing:1px">Авторизация қатесі</p>
+          <p style="font-size:11px;color:#556;line-height:1.8;max-width:280px">
+            Telegram арқылы кіру сәтсіз болды.<br>
+            BOT_TOKEN мен ADMIN_ID параметрлерін тексеріңіз.</p>
+          <button onclick="location.reload()"
+            style="padding:14px 32px;background:#00ff88;color:#000;border:none;border-radius:6px;
+            font-family:monospace;font-weight:700;font-size:14px;letter-spacing:1px;cursor:pointer">
+            🔄 Қайталау</button>
+        </div>`;
+      return;
+    }
+  }
+
+  // 3. Web браузер — кіру/тіркелу экраны
+  hideLoader();
+  renderAuth();
+}
+
+function sess({user,token}){
+  CU=user; AT=token;
+  if(token) localStorage.setItem('qbit_tok',token);
+}
+function renderAuth(){
+  showS('auth');
+  document.getElementById('bnav').classList.remove('show');
+}
+function go(){
+  document.getElementById('bnav').classList.add('show');
+  updDrawer(); navTo('home');
+}
+
+// ── AUTH ─────────────────────────────────────────────
+function authTab(t){
+  ['L','R','F'].forEach(x=>document.getElementById('v'+x).style.display='none');
+  document.getElementById('v'+t.toUpperCase()).style.display='flex';
+  ['l','r'].forEach(x=>document.getElementById('tab-'+x)?.classList.toggle('active',x===t));
+}
+async function doLogin(){
+  setE('lErr','');
+  try{
+    const r=await aApi('login',{username:v('lU'),password:v('lP')});
+    sess(r); go();
+  }catch(e){
+    const m={user_not_found:'Пайдаланушы табылмады',wrong_password:'Қате құпиясөз',fields_required:'Өрістерді толтырыңыз'};
+    setE('lErr',m[e.message]||e.message);
+  }
+}
+// Тіркелу аватар
+function onRImg(input){
+  const f=input.files[0]; if(!f) return;
+  if(f.size>2*1024*1024){toast('Макс. 2MB');return;}
+  const fr=new FileReader();
+  fr.onload=e=>{
+    rAvB64=e.target.result;
+    const ap=document.getElementById('rAvPrev');
+    ap.innerHTML=`<img src="${rAvB64}" alt="" style="width:100%;height:100%;object-fit:cover;border-radius:50%">`;
+    selEmoji=null; document.getElementById('rRemAv').style.display='flex';
+    document.querySelectorAll('#regEG .eo').forEach(b=>b.classList.remove('sel'));
+  };
+  fr.readAsDataURL(f);
+}
+function rmRImg(){
+  rAvB64=null;
+  const ap=document.getElementById('rAvPrev'); ap.innerHTML=''; ap.textContent='👤';
+  document.getElementById('rRemAv').style.display='none';
+  document.getElementById('rImgF').value='';
+}
+async function doReg(){
+  setE('rErr','');
+  try{
+    const r=await aApi('register',{
+      username:v('rU'),handle:v('rH'),
+      bio:v('rBio')||null,birthdate:v('rB')||null,
+      password:v('rP'),password2:v('rP2'),
+      avatar_emoji:rAvB64?null:selEmoji,
+      avatar_url:rAvB64||null
+    });
+    sess(r); go();
+  }catch(e){
+    const m={username_required:'Пайдаланушы аты міндетті',password_too_short:'Кем дегенде 6 таңба',
+      passwords_mismatch:'Құпиясөздер сәйкес емес',username_taken:'Бұл аты алынған',handle_taken:'Бұл лақап алынған'};
+    setE('rErr',m[e.message]||e.message);
+  }
+}
+async function doForgot(){
+  setE('fErr','');
+  try{
+    const r=await aApi('forgot_password',{username:v('fU')});
+    toast('Жіберілді'+(r._dev_token?' (dev:'+r._dev_token.slice(0,8)+')':''));
+    authTab('l');
+  }catch(e){setE('fErr',e.message);}
+}
+
+// ── NAV ──────────────────────────────────────────────
+const ALL_S=['auth','home','library','quiz','test','result','game','leaderboard','profile','settings','admin'];
+function showS(id){
+  ALL_S.forEach(s=>document.getElementById('s-'+s)?.classList.remove('active'));
+  document.getElementById('s-'+id)?.classList.add('active');
+  AS=id;
+  const showBack=!['home','library','leaderboard','profile','game'].includes(id);
+  showBack?tg?.BackButton?.show():tg?.BackButton?.hide();
+  document.querySelectorAll('.nb').forEach(b=>b.classList.toggle('active',b.dataset.s===id));
+}
+function navTo(id){
+  if(id==='admin'&&!isAdmin()) return;
+  showS(id);
+  if(id==='home')        rHome();
+  if(id==='library')     loadLib();
+  if(id==='profile')     loadProf();
+  if(id==='leaderboard') loadLB(lbP);
+  if(id==='settings')    rSettings();
+  if(id==='admin')       aTab('stats');
+  if(id==='game')        rGame();
+}
+function openDrawer(){document.getElementById('drawer').classList.add('open');document.getElementById('dbg').classList.add('show');}
+function closeDrawer(){document.getElementById('drawer').classList.remove('open');document.getElementById('dbg').classList.remove('show');}
+function dgo(s){closeDrawer();navTo(s);}
+
+function updDrawer(){
+  if(!CU) return;
+  const av=document.getElementById('dav');
+  if(CU.avatar_url){av.innerHTML=`<img src="${CU.avatar_url}" alt="">`;}
+  else{av.innerHTML='';av.textContent=CU.avatar_emoji||CU.username?.[0]?.toUpperCase()||'👤';}
+  document.getElementById('dname').textContent=CU.first_name||CU.username;
+  document.getElementById('dhandle').textContent=CU.handle?'@'+CU.handle:'';
+  const adm=isAdmin();
+  document.getElementById('adminBadge').style.display=adm?'inline-flex':'none';
+  document.getElementById('homeBadge').style.display=adm?'inline-flex':'none';
+  document.getElementById('pAdminBadge').style.display=adm?'inline-flex':'none';
+  document.getElementById('adminDBtn').style.display=adm?'flex':'none';
+  if(adm&&!document.querySelector('.nb[data-s="admin"]')){
+    const b=document.createElement('button');
+    b.className='nb';b.dataset.s='admin';
+    b.innerHTML='<span class="nb-i" style="color:#ffd60a">🛡️</span><span>Әкімші</span>';
+    b.onclick=()=>navTo('admin');
+    document.getElementById('bnav').appendChild(b);
+  }
+}
+
+// ── HOME ─────────────────────────────────────────────
+function rHome(){
+  if(!CU)return;
+  document.getElementById('homeCard').style.display='flex';
+  const av=document.getElementById('homeAv');
+  if(CU.avatar_url){av.innerHTML=`<img src="${CU.avatar_url}" alt="" style="width:100%;height:100%;object-fit:cover;border-radius:50%">`;}
+  else{av.innerHTML='';av.textContent=CU.avatar_emoji||CU.username?.[0]?.toUpperCase()||'👤';}
+  document.getElementById('homeName').textContent=CU.first_name||CU.username;
+  document.getElementById('homeStats').textContent=`${CU.total_games||0} ойын · ${CU.best_score||0} ұпай`;
+  document.getElementById('homeBadge').style.display=isAdmin()?'inline-flex':'none';
+}
+
+// ── LIBRARY ──────────────────────────────────────────
+async function loadLib(){
+  document.getElementById('libList').innerHTML=ld();
+  try{
+    const ts=await dbApi('get_tests',{mode:libM==='all'?undefined:libM});
+    const el=document.getElementById('libList');
+    if(!ts?.length){el.innerHTML=`<p class="empty">Тест жоқ</p>`;return;}
+    el.innerHTML=ts.map(t=>`
+      <div class="tc" onclick="startPlay('${t.id}','${t.mode}')">
+        <div style="font-size:26px;width:40px;text-align:center;flex-shrink:0">${esc(t.cover_emoji||'📝')}</div>
+        <div style="flex:1;min-width:0">
+          <p style="font-size:14px;font-weight:700;color:#e8e8ff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(t.title)}</p>
+          <p style="font-size:10px;color:#445;margin-top:2px">${esc(t.category||'')}${t.category?' · ':''}${t.mode==='quiz'?'Куиз':'Тест'}</p>
+        </div>
+        <span style="font-size:9px;padding:2px 7px;border-radius:3px;font-weight:700;letter-spacing:1px;flex-shrink:0;
+          ${t.mode==='quiz'?'background:rgba(0,255,136,.12);color:#00ff88':'background:rgba(100,100,255,.12);color:#8888ff'}">
+          ${t.mode==='quiz'?'КУИЗ':'ТЕСТ'}</span>
+      </div>`).join('');
+  }catch(e){document.getElementById('libList').innerHTML=`<p class="empty">Қате</p>`;}
+}
+function libF(m){
+  libM=m;
+  ['all','quiz','test'].forEach(x=>document.getElementById('l'+x[0])?.classList.toggle('active',x===m));
+  loadLib();
+}
+
+// ── PICK TEST ────────────────────────────────────────
+async function pickTest(mode){
+  try{
+    const ts=await dbApi('get_tests',{mode});
+    if(!ts?.length){toast('Тест жоқ');return;}
+    const old=document.getElementById('pickM');if(old)old.remove();
+    const bg=document.createElement('div');bg.className='mbg show';bg.id='pickM';
+    bg.innerHTML=`<div class="modal">
+      <p class="mt">${mode==='quiz'?'КУИЗ':'ТЕСТ'} ТАҢДА</p>
+      <div style="display:flex;flex-direction:column;gap:8px">
+        ${ts.map(t=>`<div class="tc" onclick="startPlay('${t.id}','${t.mode}');document.getElementById('pickM').remove()">
+          <div style="font-size:24px">${esc(t.cover_emoji||'📝')}</div>
+          <div style="flex:1;min-width:0"><p style="font-size:13px;font-weight:700;color:#e8e8ff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(t.title)}</p></div>
+        </div>`).join('')}
+      </div>
+      <button class="btn-o" onclick="document.getElementById('pickM').remove()">× Жабу</button>
+    </div>`;
+    document.body.appendChild(bg);
+  }catch(e){toast('Қате: '+e.message);}
+}
+
+// ── PLAY ─────────────────────────────────────────────
+async function startPlay(tid,mode){
+  document.getElementById('pickM')?.remove();
+  PS={testId:tid,mode,idx:0,score:0,streak:0,best:0,tot:0,ans:[],ua:{},rev:false,curQ:null,tL:0};
+  try{
+    const {test,questions}=await dbApi('get_test',{test_id:tid});
+    PS.test=test;PS.qs=questions;PS.tot=questions.length;
+    mode==='quiz'?startQuiz():startTest();
+  }catch(e){toast('Жүктеу қатесі: '+e.message);}
+}
+
+// QUIZ
+function startQuiz(){PS.idx=0;PS.score=0;PS.streak=0;PS.best=0;PS.ans=[];updQH();showS('quiz');rQQ();}
+function rQQ(){
+  const q=PS.qs[PS.idx];if(!q){endPlay();return;}
+  PS.curQ=q;PS.rev=false;
+  document.getElementById('qCard').innerHTML=`
+    <p class="qt">${esc(q.text)}</p>
+    <div class="opts">${q.options.map((o,i)=>`
+      <button class="opt" id="o${i}" onclick="qAns(${i})">
+        <span class="ol">${'ABCD'[i]}</span><span>${esc(o)}</span></button>`).join('')}</div>
+    <div id="qX"></div>`;
+  startQT(q.time_limit||20);
+}
+function qAns(i){
+  if(PS.rev)return;stopQT();PS.rev=true;
+  const q=PS.curQ,ok=i===q.correct;
+  // Куиз: әр дұрыс жауапқа 5 ұпай
+  const pts=ok?5:0;
+  if(ok){PS.score+=pts;PS.streak++;PS.best=Math.max(PS.best,PS.streak);}else PS.streak=0;
+  // Quiz: 5 ұпай/дұрыс жауап (flat, таймер бонусы жоқ)
+  PS.ans.push({qid:q.id,answer:i,correct:q.correct,ok});
+  markQ(i,q.correct);
+  if(q.explanation){const x=document.getElementById('qX');if(x)x.innerHTML=`<div class="expl">💡 ${esc(q.explanation)}</div>`;}
+  spawn(ok);updQH();tg?.HapticFeedback?.notificationOccurred(ok?'success':'error');
+  setTimeout(()=>{PS.idx++;rQQ();},1600);
+}
+function qTO(){
+  if(PS.rev)return;PS.rev=true;PS.streak=0;
+  PS.ans.push({qid:PS.curQ.id,answer:null,correct:PS.curQ.correct,ok:false});
+  markQ(-1,PS.curQ.correct);updQH();
+  setTimeout(()=>{PS.idx++;rQQ();},1800);
+}
+function markQ(ch,co){
+  for(let i=0;i<4;i++){
+    const b=document.getElementById('o'+i);if(!b)continue;b.disabled=true;
+    if(i===co)b.classList.add('correct');
+    else if(i===ch&&i!==co)b.classList.add('wrong');
+    else b.classList.add('dim');
+  }
+}
+function updQH(){
+  document.getElementById('qSc').textContent=PS.score;
+  document.getElementById('qStr').textContent=PS.streak;
+  document.getElementById('qPF').style.width=`${(PS.idx/PS.tot)*100}%`;
+  document.getElementById('qPT').textContent=`${PS.idx}/${PS.tot} сұрақ`;
+}
+
+// TEST
+function startTest(){PS.idx=0;PS.ans=[];PS.ua={};rTQ();showS('test');}
+function rTQ(){
+  const q=PS.qs[PS.idx];if(!q)return;PS.curQ=q;
+  document.getElementById('tQ').textContent=PS.idx+1;
+  document.getElementById('tAns').textContent=Object.keys(PS.ua).length;
+  document.getElementById('tPF').style.width=`${(PS.idx/PS.tot)*100}%`;
+  document.getElementById('tPT').textContent=`${PS.idx+1}/${PS.tot} сұрақ`;
+  const ua=PS.ua[PS.idx];
+  document.getElementById('tCard').innerHTML=`
+    <p class="qt">${esc(q.text)}</p>
+    <div class="opts">${q.options.map((o,i)=>`
+      <button class="opt${ua===i?' sel':''}" id="to${i}" onclick="tSel(${i})">
+        <span class="ol">${'ABCD'[i]}</span><span>${esc(o)}</span></button>`).join('')}</div>`;
+  document.getElementById('tNext').style.display=PS.idx<PS.tot-1?'flex':'none';
+  document.getElementById('tFin').style.display=PS.idx===PS.tot-1?'flex':'none';
+  startTT(q.time_limit||30);
+}
+function tSel(i){
+  PS.ua[PS.idx]=i;
+  for(let j=0;j<4;j++){const b=document.getElementById('to'+j);if(!b)continue;b.className='opt'+(j===i?' sel':'');}
+  document.getElementById('tAns').textContent=Object.keys(PS.ua).length;
+}
+function tNextQ(){stopTT();PS.idx++;rTQ();}
+function tFinish(){
+  stopTT();
+  let sc=0,cur=0,best=0;
+  const ans=PS.qs.map((q,i)=>{
+    const ua=PS.ua[i];const ok=ua===q.correct;
+    if(ok){sc+=10;cur++;best=Math.max(best,cur);}else cur=0;
+    return{qid:q.id,answer:ua??null,correct:q.correct,ok};
+  });
+  PS.score=sc;PS.best=best;PS.ans=ans;endPlay();
+}
+
+// TIMERS
+function startQT(s){stopQT();PS.tL=s;rQT();PS.qTimerId=setInterval(()=>{PS.tL--;rQT();if(PS.tL<=0){stopQT();qTO();}},1000);}
+function stopQT(){clearInterval(PS.qTimerId);PS.qTimerId=null;}
+function rQT(){
+  const tl=PS.tL,tot=PS.curQ?.time_limit||20;
+  const c=tl>tot*.5?'#00ff88':tl>tot*.25?'#ffcc00':'#ff4466';
+  const n=document.getElementById('qTN'),a=document.getElementById('qArc');
+  if(n){n.textContent=tl;n.style.color=c;}
+  if(a){a.style.strokeDasharray=`${(tl/tot)*CIRC} ${CIRC}`;a.style.stroke=c;}
+}
+function startTT(s){stopTT();PS.tTL=s;rTT();PS.tTimerId=setInterval(()=>{PS.tTL--;rTT();if(PS.tTL<=0){stopTT();tNextQ();}},1000);}
+function stopTT(){clearInterval(PS.tTimerId);PS.tTimerId=null;}
+function rTT(){
+  const n=document.getElementById('tTN'),a=document.getElementById('tArc');
+  if(n)n.textContent=PS.tTL||0;
+  if(a)a.style.strokeDasharray=`${((PS.tTL||0)/30)*CIRC} ${CIRC}`;
+}
+
+// END + RESULT
+async function endPlay(){
+  stopQT();stopTT();
+  // Пайыз: дұрыс жауап/барлық сұрақ
+  const correctCount=PS.ans.filter(a=>a.ok).length;
+  const pct=PS.tot>0?Math.round((correctCount/PS.tot)*100):0;
+  const rank=pct>=80?'🏆 Чемпион':pct>=60?'⭐ Тәжірибелі':pct>=40?'📈 Дамушы':'🌱 Жаңадан';
+  showS('result');
+  document.getElementById('resRank').textContent=rank;
+  document.getElementById('resScore').textContent=PS.score;
+  document.getElementById('resPct').textContent=pct+'% дұрыс';
+  const bar=document.getElementById('resBar');
+  bar.style.width='0';bar.style.background=pct>=60?'#00ff88':'#ffcc00';
+  setTimeout(()=>bar.style.width=pct+'%',100);
+  document.getElementById('resStats').innerHTML=`
+    <div class="rsbox"><div style="font-size:20px;font-weight:700;color:#e8e8ff">${PS.best}</div><div style="font-size:9px;color:#445;margin-top:3px">🔥 СЕРИЯ</div></div>
+    <div class="rsbox"><div style="font-size:20px;font-weight:700;color:#e8e8ff">${pct}%</div><div style="font-size:9px;color:#445;margin-top:3px">НӘТИЖЕ</div></div>
+    <div class="rsbox"><div style="font-size:20px;font-weight:700;color:#e8e8ff">${PS.tot}</div><div style="font-size:9px;color:#445;margin-top:3px">СҰРАҚ</div></div>`;
+  if(PS.mode==='test'){
+    document.getElementById('resAn').style.display='block';
+    document.getElementById('resAnList').innerHTML=PS.ans.map((a,i)=>{
+      const q=PS.qs[i];const mk=a.answer===null?'sk':a.ok?'ok':'no';
+      const mc=mk==='ok'?'rgba(0,255,136,.15)':mk==='no'?'rgba(255,68,102,.15)':'rgba(80,80,80,.2)';
+      const mc2=mk==='ok'?'#00ff88':mk==='no'?'#ff4466':'#556';
+      return`<div style="padding:10px 0;border-bottom:1px solid #0d0d1a;display:flex;gap:10px;align-items:flex-start">
+        <div style="width:20px;height:20px;border-radius:50%;display:flex;align-items:center;justify-content:center;
+          font-size:11px;flex-shrink:0;margin-top:2px;background:${mc};color:${mc2}">${mk==='ok'?'✓':mk==='no'?'✗':'—'}</div>
+        <div style="flex:1">
+          <p style="font-size:12px;color:#778">${esc(q.text)}</p>
+          ${a.ok?`<p style="font-size:11px;color:#00ff88;margin-top:2px">✓ ${esc(q.options[q.correct])}</p>`
+            :`${a.answer!=null?`<p style="font-size:11px;color:#ff4466;margin-top:2px">Сіз: ${esc(q.options[a.answer])}</p>`:''}
+             <p style="font-size:11px;color:#00ff88;margin-top:2px">Дұрыс: ${esc(q.options[q.correct])}</p>
+             ${q.explanation?`<p style="font-size:10px;color:#667;margin-top:2px">💡 ${esc(q.explanation)}</p>`:''}`}
+        </div></div>`;}).join('');
+  }
+  // #1 FIX: Replay — tid мен mode-ті closure-ға сақтаймыз
+  const savedTestId = PS.testId;
+  const savedMode   = PS.mode;
+  document.getElementById('resReplay').onclick=()=>{
+    if(!savedTestId){ toast('Тест табылмады'); navTo('library'); return; }
+    startPlay(savedTestId, savedMode);
+  };
+  try{
+    await dbApi('save_record',{test_id:PS.testId,mode:PS.mode,score:PS.score,pct,best_streak:PS.best,avg_time_ms:0,answers:PS.ans});
+    if(CU){CU.total_games=(CU.total_games||0)+1;CU.best_score=Math.max(CU.best_score||0,PS.score);}
+    toast('Нәтиже сақталды ✓');
+  }catch(e){console.warn('save',e);}
+}
+
+// ── PROFILE ──────────────────────────────────────────
+async function loadProf(){
+  if(!CU)return;
+  const av=document.getElementById('pAv');
+  if(CU.avatar_url){av.innerHTML=`<img src="${CU.avatar_url}" alt="" style="width:100%;height:100%;object-fit:cover;border-radius:50%">`;}
+  else{av.innerHTML='';av.textContent=CU.avatar_emoji||CU.username?.[0]?.toUpperCase()||'👤';}
+  document.getElementById('pName').textContent=CU.first_name||CU.username;
+  document.getElementById('pHandle').textContent=CU.handle?'@'+CU.handle:'';
+  const pab=document.getElementById('pAdminBadge');
+  if(pab) pab.style.display=isAdmin()?'inline-flex':'none';
+  const bio=document.getElementById('pBio');
+  if(CU.bio){bio.textContent=CU.bio;bio.style.display='block';}else bio.style.display='none';
+  const badge=CU.best_score>=80?'🏆 Чемпион':CU.best_score>=60?'⭐ Тәжірибелі':CU.best_score>=40?'📈 Дамушы':'🌱 Жаңадан';
+  document.getElementById('pBadge').textContent=badge;
+  const avg=CU.total_games>0?Math.min(100,Math.round((CU.total_score||0)/Math.max(1,CU.total_games*(CU.best_score||10))))+'%':'0%';
+  document.getElementById('psG').textContent=CU.total_games||0;
+  document.getElementById('psB').textContent=CU.best_score||0;
+  document.getElementById('psA').textContent=avg;
+  document.getElementById('psSt').textContent=CU.best_streak||0;
+  const wp=document.getElementById('pWP');
+  wp.style.backgroundImage=CU.wallpaper_url?`url(${CU.wallpaper_url})`:'';
+  try{
+    const {records}=await dbApi('get_profile',{user_id:CU.id});
+    const el=document.getElementById('pHist');
+    if(!records?.length){el.innerHTML=`<p class="empty">Тарих жоқ</p>`;return;}
+    el.innerHTML=records.map(r=>{
+      const d=new Date(r.played_at);
+      const ds=`${d.getDate()}.${String(d.getMonth()+1).padStart(2,'0')} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
+      return`<div class="hi-item">
+        <div><p style="font-size:12px;color:#778">${r.mode==='quiz'?'🎯 Куиз':'📝 Тест'}</p>
+          <p style="font-size:10px;color:#334;margin-top:2px">${ds}</p></div>
+        <div style="text-align:right"><p style="font-size:14px;font-weight:700;color:#00ff88">${r.score} · ${r.pct}%</p></div>
+      </div>`;}).join('');
+  }catch(e){document.getElementById('pHist').innerHTML=`<p class="empty">Қате</p>`;}
+}
+
+// ── LEADERBOARD ───────────────────────────────────────
+async function loadLB(p){
+  lbP=p;
+  document.querySelectorAll('[data-p]').forEach(t=>t.classList.toggle('active',t.dataset.p===p));
+  document.getElementById('lbList').innerHTML=ld();
+  try{
+    const rows=await dbApi('get_leaderboard',{period:p,limit:50});
+    const el=document.getElementById('lbList');
+    if(!rows?.length){el.innerHTML=`<p class="empty">Деректер жоқ</p>`;return;}
+    const med=['🥇','🥈','🥉'],rc=['g','s','b'];
+    el.innerHTML=rows.map((r,i)=>{
+      const isMe=r.id===CU?.id;
+      const avC=r.avatar?`<img src="${r.avatar}" alt="">`:r.avatar_emoji||r.name?.[0]||'?';
+      return`<div class="lbi${isMe?' me':''}">
+        <span class="lbr ${rc[i]||''}">${i<3?med[i]:i+1}</span>
+        <div class="lbav">${avC}</div>
+        <div style="flex:1;min-width:0">
+          <p style="font-size:13px;color:#e8e8ff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">
+            ${esc(r.name)}${isMe?' <span style="color:#00ff88;font-size:10px">(сен)</span>':''}</p>
+          <p style="font-size:10px;color:#445">${r.games} ойын</p>
+        </div>
+        <span class="lbsc">${r.score}</span></div>`;}).join('');
+  }catch(e){document.getElementById('lbList').innerHTML=`<p class="empty">Жүктеу қатесі</p>`;}
+}
+function lbSw(p){loadLB(p);}
+
+// ── SETTINGS ─────────────────────────────────────────
+function rSettings(){
+  if(!CU)return;
+  sAvB64=null;sWpB64=null;
+  document.getElementById('sUser').value=CU.username||'';
+  document.getElementById('sHandle').value=CU.handle?'@'+CU.handle:'';
+
+  document.getElementById('sBirth').value=CU.birthdate||'';
+  document.getElementById('sBio').value=CU.bio||'';
+  if(CU.source==='telegram') document.getElementById('sPwdSec').style.display='none';
+  // TG photo btn
+  document.getElementById('tgPhBtn').style.display=CU.source==='telegram'?'flex':'none';
+  // Avatar preview
+  const ap=document.getElementById('sAvPrev');
+  if(CU.avatar_url){ap.innerHTML=`<img src="${CU.avatar_url}" alt="" style="width:100%;height:100%;object-fit:cover;border-radius:50%">`;}
+  else{ap.innerHTML='';ap.textContent=CU.avatar_emoji||CU.username?.[0]?.toUpperCase()||'👤';}
+  // Wallpaper preview
+  const wi=document.getElementById('sWpImg'),wl=document.getElementById('sWpLbl');
+  if(CU.wallpaper_url){wi.style.backgroundImage=`url(${CU.wallpaper_url})`;wl.textContent='Тұсқағаз орнатылған';}
+  else{wi.style.backgroundImage='';wl.textContent='Тұсқағаз таңдаңыз ↑';}
+}
+function onSImg(input){
+  const f=input.files[0];if(!f)return;
+  if(f.size>2*1024*1024){setE('sAvErr','Макс. 2MB');return;}
+  new FileReader().onload=e=>{
+    sAvB64=e.target.result;
+    const ap=document.getElementById('sAvPrev');
+    ap.innerHTML=`<img src="${sAvB64}" alt="" style="width:100%;height:100%;object-fit:cover;border-radius:50%">`;
+    setE('sAvErr','');selEmoji=null;
+    document.querySelectorAll('.eo').forEach(b=>b.classList.remove('sel'));
+  };(new FileReader()).onload=e=>{sAvB64=e.target.result;document.getElementById('sAvPrev').innerHTML=`<img src="${sAvB64}" alt="" style="width:100%;height:100%;object-fit:cover;border-radius:50%">`;setE('sAvErr','');};
+  const fr=new FileReader();fr.onload=e=>{sAvB64=e.target.result;const ap=document.getElementById('sAvPrev');ap.innerHTML=`<img src="${sAvB64}" alt="" style="width:100%;height:100%;object-fit:cover;border-radius:50%">`;setE('sAvErr','');selEmoji=null;document.querySelectorAll('.eo').forEach(b=>b.classList.remove('sel'));};fr.readAsDataURL(f);
+}
+function rmSAv(){
+  sAvB64='__remove__';
+  const ap=document.getElementById('sAvPrev');ap.innerHTML='';ap.textContent='👤';
+  selEmoji=null;document.querySelectorAll('.eo').forEach(b=>b.classList.remove('sel'));
+  toast('Сурет өшірілді — Сақтаңыз');
+}
+async function pickTgPh(){
+  const picker=document.getElementById('tgPhPicker'),list=document.getElementById('tgPhList');
+  picker.style.display='block';list.innerHTML=`<p style="font-size:11px;color:#445">Жүктелуде…</p>`;
+  try{
+    const r=await fetch('/api/tg-photos',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+AT},body:JSON.stringify({})});
+    const j=await r.json();
+    const photos=j.data?.photos||[];
+    if(!photos.length){
+      const url=tg?.initDataUnsafe?.user?.photo_url;
+      list.innerHTML=url?`<div onclick="selTgPh('${url}')" style="width:60px;height:60px;border-radius:50%;overflow:hidden;border:2px solid #1a1a2e;cursor:pointer"><img src="${url}" style="width:100%;height:100%;object-fit:cover"></div>`:`<p style="font-size:11px;color:#ff4466">Сурет жоқ</p>`;
+    }else{
+      list.innerHTML=photos.map(url=>`<div onclick="selTgPh('${url}')" style="width:60px;height:60px;border-radius:50%;overflow:hidden;border:2px solid #1a1a2e;cursor:pointer;flex-shrink:0;transition:border-color .18s" onmouseover="this.style.borderColor='#00ff88'" onmouseout="this.style.borderColor='#1a1a2e'"><img src="${url}" style="width:100%;height:100%;object-fit:cover"></div>`).join('');
+    }
+  }catch(e){list.innerHTML=`<p style="font-size:11px;color:#ff4466">Қате: ${e.message}</p>`;}
+}
+// Builtin game file handlers
+function onBIFlagFile(input){
+  const f=input.files[0]; if(!f) return;
+  if(f.size>1*1024*1024){ toast('Макс. 1MB'); return; }
+  const fr=new FileReader();
+  fr.onload=e=>{
+    document.getElementById('bIFlag').value=e.target.result;
+    const prev=document.getElementById('bIFlagPrev');
+    const img=document.getElementById('bIFlagImg');
+    if(prev){ prev.style.display='block'; img.src=e.target.result; }
+  };
+  fr.readAsDataURL(f);
+}
+
+function on4PicFile(input, n){
+  const f=input.files[0]; if(!f) return;
+  if(f.size>2*1024*1024){ toast('Макс. 2MB'); return; }
+  const fr=new FileReader();
+  fr.onload=e=>{
+    document.getElementById('bIP'+n).value=e.target.result;
+    const prev=document.getElementById('bIPrev'+n);
+    if(prev){ prev.style.display='block'; prev.src=e.target.result; }
+  };
+  fr.readAsDataURL(f);
+}
+
+function selTgPh(url){
+  sAvB64=url;
+  document.getElementById('sAvPrev').innerHTML=`<img src="${url}" alt="" style="width:100%;height:100%;object-fit:cover;border-radius:50%">`;
+  document.getElementById('tgPhPicker').style.display='none';
+  toast('Сурет таңдалды — Сақтаңыз');
+}
+function onSWp(input){
+  const f=input.files[0];if(!f)return;
+  if(f.size>3*1024*1024){setE('sWpErr','Макс. 3MB');return;}
+  const fr=new FileReader();fr.onload=e=>{sWpB64=e.target.result;document.getElementById('sWpImg').style.backgroundImage=`url(${sWpB64})`;document.getElementById('sWpLbl').textContent='Жаңа тұсқағаз';setE('sWpErr','');};fr.readAsDataURL(f);
+}
+function rmSWp(){
+  sWpB64='__remove__';
+  document.getElementById('sWpImg').style.backgroundImage='';
+  document.getElementById('sWpLbl').textContent='Тұсқағаз жоқ';
+  toast('Тұсқағаз өшірілді — Сақтаңыз');
+}
+function pickE(e){selEmoji=e;document.querySelectorAll('.eo').forEach(b=>b.classList.toggle('sel',b.textContent===e));}
+
+async function saveProf(){
+  setE('sProfErr','');
+  const payload={
+    username:v('sUser'),handle:v('sHandle'),
+    birthdate:v('sBirth')||null,bio:v('sBio')||null,
+    avatar_emoji:sAvB64?null:(selEmoji||CU.avatar_emoji||null),
+  };
+  if(sAvB64==='__remove__')   payload.avatar_url=null;
+  else if(sAvB64)             payload.avatar_url=sAvB64;
+  if(sWpB64==='__remove__')  payload.wallpaper_url=null;
+  else if(sWpB64)            payload.wallpaper_url=sWpB64;
+  try{
+    const u=await dbApi('update_profile',payload);
+    CU={...CU,...u};sAvB64=null;sWpB64=null;
+    updDrawer();rSettings();toast('Сақталды ✓');
+  }catch(e){setE('sProfErr',e.message);}
+}
+async function chPwd(){
+  setE('sPwdErr','');
+  try{
+    await dbApi('update_profile',{password:v('sOld'),password_new:v('sNew'),password_new2:v('sNew2')});
+    toast('Құпиясөз өзгертілді ✓');['sOld','sNew','sNew2'].forEach(id=>document.getElementById(id).value='');
+  }catch(e){
+    const m={wrong_password:'Ағымдағы құпиясөз қате',passwords_mismatch:'Жаңа құпиясөздер сәйкес емес'};
+    setE('sPwdErr',m[e.message]||e.message);
+  }
+}
+function doLogout(){CU=null;AT=null;localStorage.removeItem('qbit_tok');renderAuth();}
+function confirmDel(){if(!confirm('Барлық деректеріңіз жойылады. Жалғастырасыз ба?'))return;delAcc();}
+async function delAcc(){try{await dbApi('delete_account',{});doLogout();toast('Тіркелгі жойылды');}catch(e){toast('Қате: '+e.message);}}
+
+// ── GAME ─────────────────────────────────────────────
+function rGame(){
+  ['gJoin','gLobby','gPlay','gFin'].forEach(id=>document.getElementById(id).style.display='none');
+  document.getElementById('gJoin').style.display='block';
+  document.getElementById('builtins').innerHTML=[
+    {e:'🗺️',t:'Астаналар',d:'Елдің астанасын тап',s:'capitals'},
+    {e:'🏳️',t:'Тулар',d:'Елдің туын тап',s:'flags'},
+    {e:'🖼️',t:'4 сурет, 1 сөз',d:'Суреттен сөзді тап',s:'4pics'},
+  ].map(g=>`<div class="gtile" onclick="playBuiltin('${g.s}')">
+    <div style="font-size:32px">${g.e}</div>
+    <div style="font-size:11px;font-weight:700;color:#e8e8ff">${g.t}</div>
+    <div style="font-size:9px;color:#445;line-height:1.4">${g.d}</div>
+  </div>`).join('');
+}
+function playBuiltin(slug){toast('Жақында...');}
+async function joinGame(){
+  const code=v('gCode').toUpperCase(),nick=v('gNick')||CU?.username||'Player';
+  if(code.length!==6){toast('6 таңбалы код енгізіңіз');return;}
+  try{
+    const {session,player}=await dbApi('join_session',{code,nickname:nick});
+    GS={session,player};
+    document.getElementById('gJoin').style.display='none';
+    document.getElementById('gLobby').style.display='block';
+    document.getElementById('gLCode').textContent=session.code;
+    document.getElementById('rti').style.display='flex';
+    document.getElementById('rtd').classList.add('on');
+    GS.poll=setInterval(()=>pollGame(session.id),2000);
+  }catch(e){toast(e.message==='session_not_found'?'Ойын табылмады':e.message);}
+}
+async function pollGame(sid){
+  try{
+    const d=await dbApi('get_session',{session_id:sid});
+    if(!d) return;
+    GS.session=d.session; GS.players=d.players; GS.questions=d.questions;
+
+    if(d.session.status==='lobby'){
+      const el=document.getElementById('gPlayers');
+      if(el) el.innerHTML=d.players.length
+        ? d.players.map(p=>`<div class="pr">
+            <p style="font-size:13px;color:#e8e8ff">${esc(p.nickname)}</p>
+            <p style="font-size:10px;color:#445">Қосылды ✓</p>
+          </div>`).join('')
+        : `<p style="text-align:center;color:#334;font-size:11px;padding:12px">Қатысушы күтілуде…</p>`;
+
+    } else if(d.session.status==='active'){
+      document.getElementById('gLobby').style.display='none';
+      document.getElementById('gPlay').style.display='block';
+      const q=d.questions?.[d.session.current_q];
+      if(!q) return;
+
+      document.getElementById('gQNum').textContent=
+        `Сұрақ ${d.session.current_q+1} / ${d.questions.length}`;
+
+      // Жаңа сұрақ — батырмаларды жаңарту + answered flag тазалау
+      if(!GS.lastQ || GS.lastQ!==q.id){
+        GS.lastQ=q.id;
+        GS.answered=false;
+        GS.qStartTime=Date.now(); // таймер бастау
+        const colors=['#c0392b','#2980b9','#d68910','#1e8449'];
+        document.getElementById('gQCard').innerHTML=`
+          <p class="qt">${esc(q.text)}</p>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:4px">
+            ${(q.options||[]).map((o,i)=>`
+              <button class="opt" id="gOpt${i}"
+                style="background:${colors[i]};border-color:${colors[i]};color:#fff;font-weight:700;justify-content:center"
+                onclick="gAns('${q.id}',${i})">
+                <span style="font-size:12px;margin-right:6px">${['▲','●','■','★'][i]}</span>
+                <span>${esc(o)}</span>
+              </button>`).join('')}
+          </div>`;
+      }
+
+      // Жауап берілсе батырмаларды disabled ету
+      if(GS.answered){
+        document.querySelectorAll('[id^="gOpt"]').forEach(b=>b.disabled=true);
+      }
+
+      // Live рейтинг
+      document.getElementById('gBoard').innerHTML=
+        `<p class="stitle" style="margin-top:12px">🏆 РЕЙТИНГ</p>`+
+        d.players.sort((a,b)=>b.score-a.score).map((p,i)=>`
+          <div class="pr">
+            <span style="font-size:12px;min-width:20px">${['🥇','🥈','🥉'][i]||i+1}</span>
+            <p style="font-size:13px;color:#e8e8ff;flex:1">${esc(p.nickname)}</p>
+            <p style="font-size:14px;font-weight:700;color:#00ff88">${p.score}</p>
+          </div>`).join('');
+
+    } else if(d.session.status==='finished'){
+      clearInterval(GS.poll);
+      document.getElementById('rtd').classList.remove('on');
+      document.getElementById('gPlay').style.display='none';
+      document.getElementById('gFin').style.display='block';
+      document.getElementById('gFinBoard').innerHTML=
+        d.players.sort((a,b)=>b.score-a.score).map((p,i)=>`
+          <div class="pr">
+            <p style="font-size:13px;color:#e8e8ff">${['🥇','🥈','🥉'][i]||i+1} ${esc(p.nickname)}</p>
+            <p style="font-size:14px;font-weight:700;color:#00ff88">${p.score}</p>
+          </div>`).join('');
+    }
+  }catch(e){ console.warn('poll',e); }
+}
+async function gAns(qid,idx){
+  if(GS.answered) return;
+  if(!GS.session?.id||!GS.player?.id){toast('Байланыс үзілді');return;}
+  GS.answered=true;
+  const startTime = GS.qStartTime||Date.now();
+  const timeTaken = Date.now()-startTime;
+  // Барлық батырмаларды disable
+  document.querySelectorAll('[id^="gOpt"]').forEach(b=>b.disabled=true);
+  // Таңдалған батырманы белгілеу
+  const chosen=document.getElementById('gOpt'+idx);
+  if(chosen) chosen.style.opacity='1';
+  document.querySelectorAll('[id^="gOpt"]').forEach((b,i)=>{if(i!==idx)b.style.opacity='.4';});
+  try{
+    const r=await dbApi('submit_answer',{
+      session_id:GS.session.id,
+      player_id:GS.player.id,
+      question_id:qid,
+      answer:idx,
+      time_taken:timeTaken
+    });
+    if(r.is_correct){
+      if(chosen){chosen.style.borderColor='#00ff88';chosen.style.background='rgba(0,255,136,.2)';}
+      toast(`✓ Дұрыс! +${r.points} ұпай`);
+    } else {
+      if(chosen){chosen.style.borderColor='#ff4466';chosen.style.background='rgba(255,68,102,.2)';}
+      toast('✗ Қате');
+    }
+  }catch(e){ console.warn('gAns',e); toast('Жіберілді'); }
+}
+// ── BUILTIN GAMES ─────────────────────────────────────────
+let BG = {}; // builtin game state
+
+async function startBuiltin(slug) {
+  try {
+    const qs = await dbApi('play_builtin', { slug, count: 10 });
+    if (!qs?.length) { toast('Сұрақтар жоқ — Әкімші қосуы керек'); return; }
+    BG = { slug, qs, idx: 0, score: 0, correct: 0 };
+    showBuiltinQ();
+  } catch(e) { toast('Қате: ' + e.message); }
+}
+
+function showBuiltinQ() {
+  const q = BG.qs[BG.idx];
+  if (!q) { endBuiltin(); return; }
+
+  const old = document.getElementById('builtinModal'); if (old) old.remove();
+  const bg = document.createElement('div');
+  bg.className = 'mbg show'; bg.id = 'builtinModal';
+
+  let body = '';
+  if (BG.slug === 'flags') {
+    // Тудың суретін көрсету, жауап — ел аты
+    const flagSrc = q.flag && (q.flag.startsWith('data:') || q.flag.startsWith('http'))
+      ? `<img src="${q.flag}" style="max-width:160px;max-height:100px;border-radius:10px;margin-bottom:12px">`
+      : `<div style="font-size:80px;margin-bottom:12px">${q.flag||'🏳️'}</div>`;
+    body = `<div style="text-align:center">${flagSrc}<p style="font-size:11px;color:#445;margin-bottom:12px">Бұл қай елдің туы?</p></div>`;
+  } else if (BG.slug === 'capitals') {
+    body = `<p style="font-size:16px;color:#e8e8ff;text-align:center;margin-bottom:16px">
+      <span style="font-size:11px;letter-spacing:2px;color:#445;display:block;margin-bottom:6px">АСТАНАСЫ ҚАЙСЫ?</span>
+      ${esc(q.question)}</p>`;
+  } else if (BG.slug === '4pics') {
+    const imgs = q.images || [];
+    body = `<div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:12px">
+      ${[0,1,2,3].map(i => imgs[i]
+        ? `<div style="aspect-ratio:1;border-radius:8px;overflow:hidden;background:#0d0d1a">
+             <img src="${imgs[i]}" style="width:100%;height:100%;object-fit:cover"></div>`
+        : `<div style="aspect-ratio:1;border-radius:8px;background:#141425;display:flex;align-items:center;justify-content:center;color:#334;font-size:11px">${i+1}</div>`
+      ).join('')}
+    </div>
+    <p style="font-size:11px;color:#445;letter-spacing:1px;text-align:center;margin-bottom:8px">БІР СӨЗДІ ТАП</p>`;
+  }
+
+  const optColors = ['#c0392b','#2980b9','#d68910','#1e8449'];
+  const optShapes = ['▲','●','■','★'];
+  const optsHtml = q.options.map((opt, i) => `
+    <button onclick="builtinAnswer(${i})"
+      style="padding:13px 10px;background:${optColors[i]};border:none;border-radius:8px;
+        color:#fff;font-family:inherit;font-size:14px;font-weight:700;cursor:pointer;
+        display:flex;align-items:center;gap:8px;transition:all .15s;text-align:left">
+      <span style="font-size:16px">${optShapes[i]}</span>
+      <span style="flex:1">${esc(opt)}</span>
+    </button>`).join('');
+
+  bg.innerHTML = `<div class="modal" style="gap:10px">
+    <div style="display:flex;justify-content:space-between;align-items:center">
+      <span style="font-size:10px;color:#445;letter-spacing:2px">СҰРАҚ ${BG.idx+1}/${BG.qs.length}</span>
+      <span style="font-size:13px;font-weight:700;color:#00ff88">${BG.score} ұпай</span>
+    </div>
+    <div style="height:3px;background:#111;border-radius:2px;overflow:hidden">
+      <div style="height:100%;background:#00ff88;border-radius:2px;width:${(BG.idx/BG.qs.length)*100}%;transition:width .4s"></div>
+    </div>
+    ${body}
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px" id="builtinOpts">
+      ${optsHtml}
+    </div>
+    <div id="builtinFeedback" style="display:none;padding:10px 12px;border-radius:8px;font-size:13px"></div>
+    <button class="btn-o" onclick="document.getElementById('builtinModal').remove()">× Шығу</button>
+  </div>`;
+  document.body.appendChild(bg);
+}
+
+function builtinAnswer(idx) {
+  const q = BG.qs[BG.idx];
+  const ok = idx === q.correct;
+  if (ok) { BG.score += 5; BG.correct++; }
+
+  // Батырмаларды disable + белгілеу
+  document.querySelectorAll('#builtinOpts button').forEach((b, i) => {
+    b.disabled = true;
+    b.style.opacity = (i === q.correct) ? '1' : '0.4';
+    if (i === q.correct) b.style.border = '2px solid #00ff88';
+    if (i === idx && !ok) b.style.border = '2px solid #ff4466';
+  });
+
+  // Feedback
+  const fb = document.getElementById('builtinFeedback');
+  if (fb) {
+    fb.style.display = 'block';
+    fb.style.background = ok ? 'rgba(0,255,136,.12)' : 'rgba(255,68,102,.12)';
+    fb.style.color = ok ? '#00ff88' : '#ff4466';
+    fb.style.border = `1px solid ${ok ? '#00ff88' : '#ff4466'}`;
+    fb.textContent = ok ? `✓ Дұрыс! ${q.options[q.correct]}` : `✗ Қате. Дұрысы: ${q.options[q.correct]}`;
+  }
+
+  tg?.HapticFeedback?.notificationOccurred(ok ? 'success' : 'error');
+  spawn(ok);
+
+  setTimeout(() => {
+    BG.idx++;
+    document.getElementById('builtinModal')?.remove();
+    showBuiltinQ();
+  }, 1400);
+}
+
+function endBuiltin() {
+  const pct = BG.qs.length > 0 ? Math.round((BG.correct / BG.qs.length) * 100) : 0;
+  const old = document.getElementById('builtinModal'); if (old) old.remove();
+  const bg = document.createElement('div');
+  bg.className = 'mbg show'; bg.id = 'builtinModal';
+  const names = { capitals: 'Астаналар', flags: 'Тулар', '4pics': '4 сурет, 1 сөз' };
+  bg.innerHTML = `<div class="modal" style="text-align:center;gap:14px">
+    <p style="font-size:10px;letter-spacing:3px;color:#445">${esc(names[BG.slug]||'')} — НӘТИЖЕ</p>
+    <div style="font-size:64px;font-weight:900;color:#00ff88;line-height:1">${BG.score}</div>
+    <p style="font-size:12px;color:#445">ҰПАЙ</p>
+    <div style="display:flex;gap:20px;justify-content:center">
+      <div><div style="font-size:22px;font-weight:700;color:#e8e8ff">${BG.correct}/${BG.qs.length}</div>
+        <div style="font-size:9px;color:#445;margin-top:3px">ДҰРЫС</div></div>
+      <div><div style="font-size:22px;font-weight:700;color:#e8e8ff">${pct}%</div>
+        <div style="font-size:9px;color:#445;margin-top:3px">НӘТИЖЕ</div></div>
+    </div>
+    <button class="btn-g" onclick="document.getElementById('builtinModal').remove();startBuiltin('${BG.slug}')">🔄 Қайта</button>
+    <button class="btn-o" onclick="document.getElementById('builtinModal').remove()">← Артқа</button>
+  </div>`;
+  document.body.appendChild(bg);
+}
+
+function resetGame(){clearInterval(GS.poll);GS={};document.getElementById('rti').style.display='none';rGame();}
+
+// ── Барлығына ашық ойындар ────────────────────────────────
+async function playBuiltin(slug){
+  const names={capitals:'Астаналар',flags:'Тулар','4pics':'4 сурет, 1 сөз'};
+  try{
+    const items=await dbApi('get_builtin_questions',{slug});
+    if(!items||items.length<4){ toast('Сұрақтар жеткіліксіз (кем дегенде 4 болуы керек)'); return; }
+    // Ойын state
+    BS={slug,items,idx:0,score:0,streak:0,best:0,wrong:0,startTime:Date.now()};
+    showBuiltinQ();
+  }catch(e){ toast('Жүктеу қатесі: '+e.message); }
+}
+
+let BS={};
+function showBuiltinQ(){
+  const item=BS.items[BS.idx];
+  if(!item){ endBuiltin(); return; }
+
+  // 3 жалған жауап таңдау
+  const others=BS.items.filter((_,i)=>i!==BS.idx);
+  const shuffled=others.sort(()=>Math.random()-.5).slice(0,3);
+  const wrongs=item.wrong_answers?.slice(0,3)||shuffled.map(o=>o.answer);
+  // Барлық жауаптар + random тәртіп
+  let opts=[{txt:item.answer,correct:true},...wrongs.map(w=>({txt:w,correct:false}))];
+  opts=opts.sort(()=>Math.random()-.5);
+
+  const old=document.getElementById('builtinGame');if(old)old.remove();
+  const bg=document.createElement('div');bg.className='mbg show';bg.id='builtinGame';
+
+  const slugNames={capitals:'Астаналар 🗺️',flags:'Тулар 🏳️','4pics':'4 сурет, 1 сөз 🖼️'};
+  const colors=['#c0392b','#2980b9','#d68910','#1e8449'];
+  const shapes=['▲','●','■','★'];
+
+  let questionContent='';
+  if(BS.slug==='flags'&&item.flag){
+    // Тудың суреті немесе emoji
+    const isUrl=item.flag.startsWith('http')||item.flag.startsWith('data:');
+    questionContent=isUrl
+      ?`<img src="${item.flag}" style="width:160px;height:100px;object-fit:cover;border-radius:10px;margin:8px auto;display:block">`
+      :`<div style="font-size:80px;text-align:center;margin:8px 0">${item.flag}</div>`;
+    questionContent+=`<p style="font-size:12px;color:#445;text-align:center;letter-spacing:1px">Бұл қай елдің туы?</p>`;
+  } else if(BS.slug==='capitals'){
+    questionContent=`<p style="font-size:22px;font-weight:700;color:#e8e8ff;text-align:center;padding:16px 0">${esc(item.question||item.answer)}</p>
+      <p style="font-size:12px;color:#445;text-align:center;letter-spacing:1px">Елдің астанасы қай қала?</p>`;
+  } else {
+    // 4pics
+    const imgs=item.images||[];
+    questionContent=`<div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin:8px 0">
+      ${[0,1,2,3].map(i=>imgs[i]
+        ?`<img src="${imgs[i]}" style="width:100%;aspect-ratio:1;object-fit:cover;border-radius:8px">`
+        :`<div style="aspect-ratio:1;background:#0d0d1a;border:1px solid #1a1a2e;border-radius:8px;display:flex;align-items:center;justify-content:center;color:#334;font-size:11px">${i+1}</div>`
+      ).join('')}
+    </div>`;
+  }
+
+  bg.innerHTML=`<div class="modal" style="max-height:95vh;overflow-y:auto;gap:10px;padding-bottom:env(safe-area-inset-bottom,20px)">
+    <div style="display:flex;justify-content:space-between;align-items:center">
+      <p style="font-size:11px;color:#445;letter-spacing:2px">${slugNames[BS.slug]}</p>
+      <p style="font-size:12px;font-weight:700;color:#00ff88">${BS.idx+1}/${BS.items.length}</p>
+    </div>
+    <div style="height:3px;background:#111;border-radius:2px">
+      <div style="width:${((BS.idx)/BS.items.length)*100}%;height:100%;background:#00ff88;border-radius:2px;transition:width .4s"></div>
+    </div>
+    ${questionContent}
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+      ${opts.map((o,i)=>`
+        <button id="bopt${i}" onclick="ansBuiltin(${i},${o.correct},this)"
+          style="padding:14px 10px;background:${colors[i]};border:none;border-radius:10px;
+          color:#fff;font-family:monospace;font-size:13px;font-weight:700;cursor:pointer;
+          display:flex;align-items:center;gap:8px;transition:all .15s">
+          <span style="font-size:16px">${shapes[i]}</span>
+          <span>${esc(o.txt)}</span>
+        </button>`).join('')}
+    </div>
+    <div style="display:flex;justify-content:space-between;align-items:center;
+      background:rgba(255,255,255,.03);border-radius:8px;padding:10px 14px">
+      <span style="font-size:11px;color:#445">🔥 ${BS.streak} серия</span>
+      <span style="font-size:14px;font-weight:700;color:#00ff88">${BS.score} ұпай</span>
+    </div>
+    <button class="btn-o" onclick="document.getElementById('builtinGame').remove()" style="padding:10px">× Тоқтату</button>
+  </div>`;
+  document.body.appendChild(bg);
+}
+
+function ansBuiltin(idx,correct,btn){
+  // Барлық батырмалар disabled
+  document.querySelectorAll('[id^="bopt"]').forEach(b=>{b.disabled=true;b.style.opacity='.5';});
+  btn.style.opacity='1';
+  if(correct){
+    btn.style.boxShadow='0 0 12px rgba(0,255,136,.5)';
+    btn.style.border='2px solid #00ff88';
+    BS.score+=5; BS.streak++; BS.best=Math.max(BS.best,BS.streak);
+    tg?.HapticFeedback?.notificationOccurred('success');
+  } else {
+    btn.style.border='2px solid #ff4466';
+    BS.streak=0;
+    // Дұрыс жауапты жасыл ет
+    document.querySelectorAll('[id^="bopt"]').forEach(b=>{
+      if(b.textContent.trim().includes(BS.items[BS.idx].answer)){
+        b.style.opacity='1'; b.style.border='2px solid #00ff88';
+      }
+    });
+    tg?.HapticFeedback?.notificationOccurred('error');
+  }
+  setTimeout(()=>{
+    document.getElementById('builtinGame')?.remove();
+    BS.idx++;
+    showBuiltinQ();
+  },1200);
+}
+
+function endBuiltin(){
+  const total=BS.items.length;
+  const pct=Math.round((BS.score/(total*5))*100);
+  const old=document.getElementById('builtinGame');if(old)old.remove();
+  const bg=document.createElement('div');bg.className='mbg show';bg.id='builtinGame';
+  const slugNames={capitals:'Астаналар 🗺️',flags:'Тулар 🏳️','4pics':'4 сурет, 1 сөз 🖼️'};
+  bg.innerHTML=`<div class="modal" style="gap:14px;text-align:center">
+    <p style="font-size:10px;letter-spacing:2px;color:#445">${slugNames[BS.slug]}</p>
+    <div style="font-size:64px;font-weight:900;color:#00ff88;line-height:1">${BS.score}</div>
+    <p style="font-size:12px;color:#445;letter-spacing:1px">${pct}% дұрыс</p>
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px">
+      <div class="csm" style="text-align:center"><div style="font-size:20px;font-weight:700;color:#e8e8ff">${BS.best}</div><div style="font-size:9px;color:#445">🔥 СЕРИЯ</div></div>
+      <div class="csm" style="text-align:center"><div style="font-size:20px;font-weight:700;color:#e8e8ff">${pct}%</div><div style="font-size:9px;color:#445">НӘТИЖЕ</div></div>
+      <div class="csm" style="text-align:center"><div style="font-size:20px;font-weight:700;color:#e8e8ff">${total}</div><div style="font-size:9px;color:#445">СҰРАҚ</div></div>
+    </div>
+    <button class="btn-g" onclick="document.getElementById('builtinGame').remove();playBuiltin('${BS.slug}')">🔄 Қайта ойна</button>
+    <button class="btn-o" onclick="document.getElementById('builtinGame').remove()">← Жабу</button>
+  </div>`;
+  document.body.appendChild(bg);
+}
+
+// ── ADMIN ─────────────────────────────────────────────
+async function aTab(t){
+  document.querySelectorAll('.atab').forEach(b=>b.classList.toggle('active',b.id==='at-'+t));
+  const el=document.getElementById('aContent');el.innerHTML=ld();
+  try{
+    if(t==='stats'){
+      const s=await dbApi('admin_stats',{});
+      el.innerHTML=`<div class="agrid">
+        <div class="ast"><div class="asv">${s.total_users||0}</div><div class="asl">ҚОЛДАНУШЫЛАР</div></div>
+        <div class="ast"><div class="asv">${s.total_games||0}</div><div class="asl">ОЙЫНДАР</div></div>
+        <div class="ast"><div class="asv">${s.total_sessions||0}</div><div class="asl">ЖАРЫСТАР</div></div>
+        <div class="ast"><div class="asv">${s.active_week||0}</div><div class="asl">АПТАЛЫҚ БЕЛСЕНДІ</div></div>
+      </div>`;
+    }else if(t==='tests'){
+      const ts=await dbApi('admin_tests',{});
+      el.innerHTML=`<button class="btn-g" style="margin-bottom:12px" onclick="aCreateModal()">+ ТЕСТ / КУИЗ ЖАСАУ</button>`+
+        (ts?.length?ts.map(t=>`
+          <div class="tc" style="margin-bottom:8px">
+            <div style="font-size:24px;width:38px;text-align:center;flex-shrink:0">${esc(t.cover_emoji||'📝')}</div>
+            <div style="flex:1;min-width:0">
+              <p style="font-size:13px;font-weight:700;color:#e8e8ff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(t.title)}</p>
+              <p style="font-size:10px;color:#445;margin-top:2px">${t.mode==='quiz'?'🎯 Куиз':'📝 Тест'} · ${new Date(t.created_at).toLocaleDateString()}</p>
+            </div>
+            <div style="display:flex;gap:6px">
+              <button class="ib del" onclick="aDel('${t.id}')">🗑️</button>
+            </div>
+          </div>`).join(''):`<p class="empty">Тест жоқ</p>`);
+    }else if(t==='games'){
+      const ts=await dbApi('admin_tests',{});
+      el.innerHTML=`
+        <p class="stitle">🎮 РЕАЛТАЙМ ЖАРЫС ЖАСАУ</p>
+        <p style="font-size:11px;color:#556;margin-bottom:10px;line-height:1.6">Тест таңдаңыз → Код алыңыз → Қатысушылар кодпен қосылады</p>
+        <div class="ig" style="margin-bottom:10px"><span class="il">ТЕСТ ТАҢДАҢЫЗ</span>
+          <select class="inp" id="aGTest"><option value="">— Тест таңдаңыз —</option>
+            ${(ts||[]).map(t=>`<option value="${t.id}">${esc(t.title)}</option>`).join('')}</select></div>
+        <button class="btn-g" style="margin-bottom:16px" onclick="aStartGame()">🚀 Жарыс жасау</button>
+        <div id="aGResult"></div>
+        <div class="divider" style="margin:16px 0"></div>
+        <p class="stitle">🌍 БАРЛЫҒЫНА АШЫҚ ОЙЫНДАР</p>
+        <p style="font-size:11px;color:#556;margin-bottom:10px;line-height:1.6">Барлық ойыншылар өздігінен ойнай алады</p>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px">
+          <div class="ast" style="cursor:pointer" onclick="aEditBuiltin('capitals')">
+            <div style="font-size:26px;margin-bottom:6px">🗺️</div>
+            <div style="font-size:12px;font-weight:700;color:#e8e8ff">Астаналар</div>
+            <div class="asl">Өңдеу ➜</div>
+          </div>
+          <div class="ast" style="cursor:pointer" onclick="aEditBuiltin('flags')">
+            <div style="font-size:26px;margin-bottom:6px">🏳️</div>
+            <div style="font-size:12px;font-weight:700;color:#e8e8ff">Тулар</div>
+            <div class="asl">Өңдеу ➜</div>
+          </div>
+          <div class="ast" style="cursor:pointer" onclick="aEditBuiltin('4pics')">
+            <div style="font-size:26px;margin-bottom:6px">🖼️</div>
+            <div style="font-size:12px;font-weight:700;color:#e8e8ff">4 сурет, 1 сөз</div>
+            <div class="asl">Өңдеу ➜</div>
+          </div>
+        </div>`;
+    }else if(t==='users'){
+      const us=await dbApi('admin_users',{});
+      el.innerHTML=us?.length?us.map(u=>`
+        <div class="aur">
+          <div><p style="font-size:12px;color:#e8e8ff">${esc(u.first_name||u.username)}${u.is_admin?' 🛡️':''}</p>
+            <p style="font-size:10px;color:#445;margin-top:2px">@${esc(u.username)} · ${u.total_games||0} ойын · ${u.best_score||0} ұпай</p></div>
+          <span class="src ${u.source}">${u.source==='telegram'?'TG':'WEB'}</span>
+        </div>`).join(''):`<p class="empty">Қолданушы жоқ</p>`;
+    }else if(t==='recent'){
+      const rs=await dbApi('admin_recent',{});
+      el.innerHTML=rs?.length?rs.map(r=>`
+        <div class="hi-item" style="margin-bottom:7px">
+          <div><p style="font-size:12px;color:#778">${esc(r.user?.username||'?')}</p>
+            <p style="font-size:10px;color:#334;margin-top:2px">${esc(r.test?.title||r.mode||'?')}</p></div>
+          <div style="text-align:right">
+            <p style="font-size:13px;font-weight:700;color:#00ff88">${r.score} · ${r.pct}%</p>
+            <p style="font-size:10px;color:#334">${new Date(r.played_at).toLocaleDateString()}</p>
+          </div></div>`).join(''):`<p class="empty">Жазба жоқ</p>`;
+    }
+  }catch(e){el.innerHTML=`<p class="empty">Қате: ${esc(e.message)}</p>`;}
+}
+
+async function aStartGame(){
+  const tid=document.getElementById('aGTest')?.value;
+  if(!tid){toast('Тест таңдаңыз');return;}
+  try{
+    const sess=await dbApi('create_session',{test_id:tid});
+    document.getElementById('aGResult').innerHTML=`
+      <div class="card" style="text-align:center;display:flex;flex-direction:column;gap:10px">
+        <p style="font-size:11px;color:#445;letter-spacing:2px">ОЙЫН КОДЫ</p>
+        <div style="font-size:40px;font-weight:700;letter-spacing:8px;color:#00ff88">${sess.code}</div>
+        <p style="font-size:11px;color:#556;line-height:1.6">Қатысушылар Ойын бөліміне кіріп, кодты енгізеді</p>
+        <button class="btn-g" onclick="aCtrlGame('${sess.id}','${sess.code}')">📡 Ойынды басқару</button>
+      </div>`;
+    toast('Жарыс жасалды! Код: '+sess.code);
+  }catch(e){toast('Қате: '+e.message);}
+}
+async function aLiveGame(tid,title){
+  try{
+    const sess=await dbApi('create_session',{test_id:tid});
+    toast(`"${title}" — Код: ${sess.code}`);
+    aCtrlGame(sess.id,sess.code);
+  }catch(e){toast('Қате: '+e.message);}
+}
+function aCtrlGame(sid,code){
+  const old=document.getElementById('aCtrl');if(old){old.remove();clearInterval(window._aCP);}
+  const bg=document.createElement('div');bg.className='mbg show';bg.id='aCtrl';
+  bg.style.alignItems='flex-start';bg.style.paddingTop='20px';
+  bg.innerHTML=`<div class="modal" style="width:100%;max-width:480px;max-height:92vh;overflow-y:auto;padding:18px 16px 28px">
+    <!-- HEADER -->
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+      <div>
+        <p style="font-size:9px;letter-spacing:2px;color:#445">ОЙЫН КОДЫ</p>
+        <p style="font-size:26px;font-weight:700;letter-spacing:5px;color:#00ff88;font-family:monospace;line-height:1">${code}</p>
+      </div>
+      <div style="display:flex;align-items:center;gap:5px;font-size:9px;color:#445;letter-spacing:1px">
+        <div style="width:7px;height:7px;border-radius:50%;background:#00ff88;animation:pulse 1s infinite"></div>
+        LIVE
+      </div>
+    </div>
+
+    <!-- БАТЫРМАЛАР -->
+    <div style="display:flex;gap:7px;margin-bottom:14px">
+      <button class="btn-g" style="flex:2;padding:11px" onclick="aGameAct('${sid}','active')">▶ БАСТАУ</button>
+      <button class="btn-g" style="flex:1;padding:11px;background:#8888ff" onclick="aGameNQ('${sid}')">⏭ Келесі</button>
+      <button style="padding:8px 12px;background:rgba(255,68,102,.12);border:1px solid rgba(255,68,102,.3);
+        border-radius:6px;color:#ff4466;cursor:pointer;font-size:11px;letter-spacing:.5px;white-space:nowrap"
+        onclick="aGameAct('${sid}','finished')">⏹ Тоқтату</button>
+    </div>
+
+    <!-- АҒЫМДАҒЫ СҰРАҚ -->
+    <div style="background:rgba(255,255,255,.03);border:1px solid #141425;border-radius:10px;padding:13px;margin-bottom:12px">
+      <p style="font-size:9px;letter-spacing:2px;color:#445;margin-bottom:5px">🎯 ХОСТ БАСҚАРМАСЫ</p>
+      <p style="font-size:13px;color:#dde;line-height:1.5;min-height:20px" id="aCtrlQText">Күтілуде…</p>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:5px;margin-top:8px" id="aCtrlQOpts"></div>
+      <!-- Жауап статистикасы -->
+      <div style="display:flex;justify-content:space-between;margin-top:10px;padding-top:8px;border-top:1px solid #1a1a2e">
+        <span style="font-size:11px;color:#445">Жауап берді: <span id="aCtrlAns" style="color:#00ff88;font-weight:700">0</span> / <span id="aCtrlTot" style="color:#e8e8ff">0</span></span>
+        <span style="font-size:11px;color:#445">✓ Дұрыс: <span id="aCtrlCorr" style="color:#00ff88;font-weight:700">0</span></span>
+      </div>
+      <!-- Жолақ диаграмма (A B C D) -->
+      <div style="display:flex;align-items:flex-end;gap:6px;height:44px;margin-top:8px" id="aCtrlBars">
+        ${['A','B','C','D'].map((l,i)=>`<div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:3px">
+          <div id="aCtrlBar${i}" style="width:100%;background:${['#e74c3c','#3498db','#f39c12','#27ae60'][i]};border-radius:3px 3px 0 0;height:4px;transition:height .4s"></div>
+          <span style="font-size:8px;color:#445">${l}</span>
+        </div>`).join('')}
+      </div>
+    </div>
+
+    <!-- LIVE РЕЙТИНГ -->
+    <div style="background:rgba(255,255,255,.02);border:1px solid #141425;border-radius:10px;padding:13px">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+        <p style="font-size:9px;letter-spacing:2px;color:#445">🏆 LIVE РЕЙТИНГ</p>
+        <span style="font-size:9px;color:#445" id="aCtrlPC">0 қатысушы</span>
+      </div>
+      <div id="aCtrlP" style="display:flex;flex-direction:column;gap:5px">
+        <p style="text-align:center;color:#334;font-size:11px;padding:10px">Жүктелуде…</p>
+      </div>
+    </div>
+
+    <button class="btn-o" style="margin-top:10px;font-size:11px"
+      onclick="if(confirm('Панельді жабасыз ба?')){document.getElementById('aCtrl').remove();clearInterval(window._aCP);}">× Жабу</button>
+  </div>`;
+  document.body.appendChild(bg);
+
+  // Polling — 2 секунд сайын жаңарту
+  window._aCP=setInterval(async()=>{
+    try{
+      const d=await dbApi('get_session',{session_id:sid});
+      if(!document.getElementById('aCtrl'))return clearInterval(window._aCP);
+
+      const players=(d.players||[]).sort((a,b)=>b.score-a.score);
+      const q=d.questions?.[d.session?.current_q];
+
+      // Сұрақ панелі
+      const qText=document.getElementById('aCtrlQText');
+      const qOpts=document.getElementById('aCtrlQOpts');
+      if(q && qText){
+        qText.textContent=q.text;
+        if(qOpts) qOpts.innerHTML=['A','B','C','D'].map((l,i)=>`
+          <div style="padding:6px 8px;border-radius:6px;background:${['#c0392b','#2980b9','#d68910','#1e8449'][i]};
+            font-size:11px;color:#fff;text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis
+            ${i===q.correct?';border:2px solid #fff':''}">
+            ${l}. ${esc((q.options||[])[i]||'')}</div>`).join('');
+      }
+
+      // Жауап статистика
+      const ansCount=document.getElementById('aCtrlAns');
+      const totEl=document.getElementById('aCtrlTot');
+      const corrEl=document.getElementById('aCtrlCorr');
+      const pcEl=document.getElementById('aCtrlPC');
+      if(pcEl) pcEl.textContent=players.length+' қатысушы';
+
+      // Жолақ диаграмма — game_answers-тан нақты санаймыз
+      try{
+        const aData=await dbApi('get_session_answers',{session_id:sid});
+        const curQId=curQ?.id;
+        const forQ=(aData||[]).filter(a=>a.question_id===curQId);
+        const perOpt=[0,0,0,0,0,0];
+        forQ.forEach(a=>{if(a.answer>=0&&a.answer<=5)perOpt[a.answer]++;});
+        const barEl2=document.getElementById('aCtrlBar');
+        if(barEl2&&curQ){
+          const pTotal=Math.max(1,players.length);
+          const colors=['#e74c3c','#3498db','#d68910','#1e8449'];
+          barEl2.innerHTML=(curQ.options||[]).map((opt,i)=>{
+            const cnt=perOpt[i];
+            const h=Math.max(4,Math.round((cnt/pTotal)*50));
+            const isCorr=i===curQ.correct;
+            return `<div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:3px">
+              <span style="font-size:11px;font-weight:700;color:${isCorr?'#00ff88':'#ccd'}">${cnt}</span>
+              <div style="width:100%;background:${colors[i%4]};border-radius:4px 4px 0 0;height:${h}px;
+                ${isCorr?'box-shadow:0 0 8px rgba(0,255,136,.4)':'opacity:.8'}"></div>
+              <span style="font-size:9px;color:${isCorr?'#00ff88':'#445'}">${'ABCDEF'[i]}</span>
+            </div>`;
+          }).join('');
+        }
+        // Жауап берді санын жаңарту
+        if(ansCount) ansCount.textContent=forQ.length;
+        if(totEl) totEl.textContent=players.length;
+        if(corrEl) corrEl.textContent=forQ.filter(a=>a.is_correct).length;
+      }catch(e){}
+
+      // LIVE рейтинг
+      const el=document.getElementById('aCtrlP');if(!el)return;
+      if(!players.length){el.innerHTML=`<p style="text-align:center;color:#334;font-size:11px;padding:10px">Қатысушы күтілуде…</p>`;return;}
+      const medals=['🥇','🥈','🥉'];
+      el.innerHTML=players.map((p,i)=>`
+        <div style="display:flex;align-items:center;gap:10px;padding:9px 12px;
+          background:rgba(255,255,255,.02);border:1px solid ${i===0?'rgba(255,215,0,.2)':'#141425'};
+          border-radius:8px">
+          <span style="font-size:14px;min-width:20px">${medals[i]||i+1}</span>
+          <div style="width:32px;height:32px;border-radius:50%;background:${['#e74c3c','#3498db','#f39c12','#27ae60','#8e44ad'][i%5]};
+            display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:700;color:#fff;flex-shrink:0">
+            ${esc(p.nickname?.[0]?.toUpperCase()||'?')}</div>
+          <div style="flex:1;min-width:0">
+            <p style="font-size:13px;color:#e8e8ff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(p.nickname)}</p>
+            <p style="font-size:9px;color:#445;margin-top:1px">✓${p.correct_count||0} ✗${p.wrong_count||0}</p>
+          </div>
+          <p style="font-size:18px;font-weight:700;color:#00ff88;font-family:monospace">${p.score}</p>
+        </div>`).join('');
+    }catch(e){}
+  },2000);
+}
+async function aGameAct(sid,status){
+  try{await dbApi('update_session',{session_id:sid,status});toast(status==='active'?'Ойын басталды!':'Ойын аяқталды!');
+    if(status==='finished'){clearInterval(window._aCP);document.getElementById('aCtrl')?.remove();}}
+  catch(e){toast('Қате: '+e.message);}
+}
+async function aGameNQ(sid){
+  try{
+    const d=await dbApi('get_session',{session_id:sid});
+    const nq=(d.session?.current_q||0)+1;
+    await dbApi('update_session',{session_id:sid,current_q:nq});
+    toast(`Сұрақ ${nq+1}`);
+  }catch(e){toast('Қате: '+e.message);}
+}
+function onBFlagFile(input){
+  const f=input.files[0];if(!f)return;
+  if(f.size>1024*1024){toast('Макс. 1MB');return;}
+  const fr=new FileReader();
+  fr.onload=e=>{
+    const url=e.target.result;
+    const prev=document.getElementById('bFlagPrev');
+    if(prev){prev.innerHTML=`<img src="${url}" style="width:100%;height:100%;object-fit:cover;border-radius:6px">`;prev.style.fontSize='0';}
+    // input-қа да URL қою
+    const inp=document.getElementById('bIFlag');
+    if(inp) inp.value=url;
+  };
+  fr.readAsDataURL(f);
+}
+function onBPicFile(input,n){
+  const f=input.files[0];if(!f)return;
+  if(f.size>2*1024*1024){toast('Макс. 2MB');return;}
+  const fr=new FileReader();
+  fr.onload=e=>{
+    const url=e.target.result;
+    const prev=document.getElementById('bPPrev'+n);
+    if(prev){prev.style.backgroundImage=`url(${url})`;prev.innerHTML='';}
+    const inp=document.getElementById('bIP'+n);
+    if(inp) inp.value=url;
+  };
+  fr.readAsDataURL(f);
+}
+
+async function aEditBuiltin(slug){
+  const names={capitals:'Астаналар',flags:'Тулар','4pics':'4 сурет, 1 сөз'};
+  const old=document.getElementById('aBI');if(old)old.remove();
+  const qs=await dbApi('get_builtin_questions',{slug}).catch(()=>[]);
+  const bg=document.createElement('div');bg.className='mbg show';bg.id='aBI';
+
+  // Slug-ке байланысты форма мазмұны
+  function addForm(s){
+    if(s==='capitals') return `
+      <p class="il" style="margin-bottom:6px">ЖАҢА СҰРАҚ ҚОС</p>
+      <div class="ig" style="margin-bottom:8px"><span class="il">ЕЛ АТЫ (сұрақ)</span>
+        <input class="inp" id="bIQ" placeholder="Қазақстан"></div>
+      <div class="ig" style="margin-bottom:8px"><span class="il">АСТАНА — ДҰРЫС ЖАУАП</span>
+        <input class="inp" id="bIA" placeholder="Астана"></div>
+      <div class="ig" style="margin-bottom:8px"><span class="il">ЖАЛҒАН ЖАУАП 1</span>
+        <input class="inp" id="bIW1" placeholder="Алматы"></div>
+      <div class="ig" style="margin-bottom:8px"><span class="il">ЖАЛҒАН ЖАУАП 2</span>
+        <input class="inp" id="bIW2" placeholder="Шымкент"></div>
+      <div class="ig" style="margin-bottom:8px"><span class="il">ЖАЛҒАН ЖАУАП 3</span>
+        <input class="inp" id="bIW3" placeholder="Қарағанды"></div>`;
+    if(s==='flags') return `
+      <p class="il" style="margin-bottom:6px">ЖАҢА ЖАЗБА ҚОС</p>
+      <div class="ig" style="margin-bottom:8px"><span class="il">ЕЛ АТЫ (дұрыс жауап)</span>
+        <input class="inp" id="bIA" placeholder="Қазақстан"></div>
+      <div class="ig" style="margin-bottom:8px">
+        <span class="il">ТУ СУРЕТІ</span>
+        <div style="display:flex;gap:8px;align-items:center">
+          <input class="inp" id="bIFlag" placeholder="🇰🇿 немесе URL" style="flex:1">
+          <button class="btn-o" style="flex:none;padding:10px 12px;font-size:11px" onclick="document.getElementById('bIFlagFile').click()">📁</button>
+          <input type="file" id="bIFlagFile" accept="image/*" style="display:none" onchange="onBIFlagFile(this)">
+        </div>
+        <div id="bIFlagPrev" style="margin-top:6px;display:none">
+          <img id="bIFlagImg" style="width:60px;height:40px;object-fit:contain;border:1px solid #1a1a2e;border-radius:6px">
+        </div>
+      </div>
+      <div class="ig" style="margin-bottom:8px"><span class="il">ЖАЛҒАН ЖАУАП 1</span>
+        <input class="inp" id="bIW1" placeholder="Ресей"></div>
+      <div class="ig" style="margin-bottom:8px"><span class="il">ЖАЛҒАН ЖАУАП 2</span>
+        <input class="inp" id="bIW2" placeholder="Франция"></div>
+      <div class="ig" style="margin-bottom:8px"><span class="il">ЖАЛҒАН ЖАУАП 3</span>
+        <input class="inp" id="bIW3" placeholder="Германия"></div>`;
+    if(s==='4pics') return `
+      <p class="il" style="margin-bottom:6px">ЖАҢА ЖАЗБА ҚОС</p>
+      <div class="ig" style="margin-bottom:8px"><span class="il">ЖАУАП СӨЗ (қазақша)</span>
+        <input class="inp" id="bIA" placeholder="ҚАРБЫЗ" style="text-transform:uppercase"></div>
+      <div class="ig" style="margin-bottom:4px"><span class="il">ЖАУАП ТОРКӨЗ САНЫ</span>
+        <select class="inp" id="bILetterCount">
+          <option value="0">Автоматты (сөз ұзындығы)</option>
+          <option value="4">4 торкөз</option>
+          <option value="5">5 торкөз</option>
+          <option value="6">6 торкөз</option>
+          <option value="7">7 торкөз</option>
+          <option value="8">8 торкөз</option>
+        </select></div>
+      ${[1,2,3,4].map(n=>`
+      <div class="ig" style="margin-bottom:6px">
+        <span class="il">СУРЕТ ${n}</span>
+        <div style="display:flex;gap:8px;align-items:center">
+          <input class="inp" id="bIP${n}" placeholder="https://... немесе файл" style="flex:1">
+          <button class="btn-o" style="flex:none;padding:9px 11px;font-size:11px" onclick="document.getElementById('bIPFile${n}').click()">📁</button>
+          <input type="file" id="bIPFile${n}" accept="image/*" style="display:none" onchange="on4PicFile(this,${n})">
+        </div>
+        <img id="bIPrev${n}" style="display:none;width:60px;height:45px;object-fit:cover;border-radius:6px;margin-top:4px;border:1px solid #1a1a2e">
+      </div>`).join('')}`;
+    return '';
+  }
+
+  function listItem(q){
+    const w=q.wrong_answers||[];
+    const detail=slug==='flags'?`${q.flag||''} ${q.answer}`
+      :slug==='4pics'?`${q.answer} (${(q.images||[]).length} сурет)`
+      :`${q.question} → ${q.answer}`;
+    return `<div style="display:flex;align-items:center;gap:8px;padding:10px;
+      background:rgba(255,255,255,.03);border:1px solid #1a1a2e;border-radius:8px">
+      <div style="flex:1">
+        <p style="font-size:12px;color:#e8e8ff">${esc(detail)}</p>
+        ${w.length?`<p style="font-size:10px;color:#445;margin-top:2px">Жалған: ${w.map(x=>esc(x)).join(', ')}</p>`:''}
+      </div>
+      <button class="ib del" onclick="aBIDel('${q.id}','${slug}')">🗑️</button>
+    </div>`;
+  }
+
+  bg.innerHTML=`<div class="modal">
+    <p class="mt">${names[slug]||slug} — ӨҢДЕУ</p>
+    <div id="aBIList" style="max-height:35vh;overflow-y:auto;display:flex;flex-direction:column;gap:6px">
+      ${qs.map(q=>listItem(q)).join('')||'<p class="empty" style="padding:12px">Деректер жоқ</p>'}
+    </div>
+    <div class="divider" style="margin:10px 0"></div>
+    ${addForm(slug)}
+    <div class="ie" id="bIErr"></div>
+    <button class="btn-g" onclick="aBIAdd('${slug}')">➕ Қосу</button>
+    <button class="btn-o" style="margin-top:6px" onclick="document.getElementById('aBI').remove()">× Жабу</button>
+  </div>`;
+  document.body.appendChild(bg);
+}
+
+async function aBIAdd(slug){
+  const a=document.getElementById('bIA')?.value?.trim();
+  if(!a){setE('bIErr','Дұрыс жауапты енгізіңіз');return;}
+  const wrong=[
+    document.getElementById('bIW1')?.value?.trim(),
+    document.getElementById('bIW2')?.value?.trim(),
+    document.getElementById('bIW3')?.value?.trim(),
+  ].filter(Boolean);
+  const payload={slug, answer:a,
+    question: document.getElementById('bIQ')?.value?.trim()||a,
+    flag: document.getElementById('bIFlag')?.value?.trim()||null,
+    wrong_answers: wrong.length?wrong:null,
+    images: slug==='4pics'?[
+      document.getElementById('bIP1')?.value?.trim(),
+      document.getElementById('bIP2')?.value?.trim(),
+      document.getElementById('bIP3')?.value?.trim(),
+      document.getElementById('bIP4')?.value?.trim(),
+    ].filter(Boolean):null,
+  };
+  try{
+    await dbApi('add_builtin_question',payload);
+    toast('Қосылды ✓');document.getElementById('aBI')?.remove();aEditBuiltin(slug);
+  }catch(e){setE('bIErr',e.message);}
+}
+
+async function aBIDel(id,slug){
+  if(!confirm('Жоясыз ба?'))return;
+  try{await dbApi('delete_builtin_question',{id});toast('Жойылды');
+    document.getElementById('aBI')?.remove();aEditBuiltin(slug);}
+  catch(e){toast('Қате: '+e.message);}
+}
+
+function aCreateModal(){
+  const old=document.getElementById('aM');if(old)old.remove();
+  const bg=document.createElement('div');bg.className='mbg show';bg.id='aM';
+  bg.innerHTML=`<div class="modal">
+    <p class="mt">ТЕСТ / КУИЗ ЖАСАУ</p>
+    <div class="fs">
+      <div class="ig"><span class="il">ТАҚЫРЫП *</span><input class="inp" id="aT" placeholder="Тест тақырыбы"></div>
+      <div class="ig"><span class="il">СИПАТТАМА</span><textarea class="inp" id="aD" rows="2"></textarea></div>
+      <div class="ig"><span class="il">КАТЕГОРИЯ</span><input class="inp" id="aC" placeholder="Ғылым"></div>
+      <div class="ig"><span class="il">РЕЖИМ</span>
+        <select class="inp" id="aMd">
+          <option value="quiz">🎯 Куиз (жедел жауап)</option>
+          <option value="test">📝 Тест (соңында нәтиже)</option>
+        </select></div>
+      <div class="ig"><span class="il">EMOJI</span><input class="inp" id="aE" value="📝" style="font-size:22px"></div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+        <div class="ig"><span class="il">УАҚЫТ ШЕГІ (сек)</span>
+          <input class="inp" id="aDT" type="number" value="20" min="5" max="300" placeholder="20"></div>
+        <div class="ig"><span class="il">ЖАУАП САНЫ</span>
+          <select class="inp" id="aAC">
+            <option value="4" selected>4 жауап (әдепкі)</option>
+            <option value="5">5 жауап</option>
+            <option value="6">6 жауап</option>
+          </select></div>
+      </div>
+      <div class="ig"><span class="il">ЖАЛПЫҒА АШЫҚ</span>
+        <label style="display:flex;align-items:center;gap:8px;cursor:pointer">
+          <input type="checkbox" id="aPub" checked style="accent-color:#00ff88;width:16px;height:16px">
+          <span style="font-size:12px;color:#778">Иә, барлығы көре алады</span>
+        </label></div>
+      <div class="divider"></div>
+      <p class="il" style="margin-bottom:8px">СҰРАҚТАРДЫ ҚОЛМЕН ҚОС</p>
+      <div id="aQList" style="display:flex;flex-direction:column;gap:8px"></div>
+      <div style="display:flex;gap:6px;flex-wrap:wrap">
+        <button class="btn-o" style="flex:1;font-size:11px;padding:9px" onclick="aAddQ('single')">➕ Бір жауапты</button>
+        <button class="btn-o" style="flex:1;font-size:11px;padding:9px" onclick="aAddQ('multi')">☑ Көп жауапты</button>
+        <button class="btn-o" style="flex:1;font-size:11px;padding:9px" onclick="aAddQ('match')">🔗 Сәйкестендіру</button>
+      </div>
+    </div>
+    <div class="ie" id="aErr"></div>
+    <button class="btn-g" onclick="aSave()">💾 САҚТАУ</button>
+    <button class="btn-o" style="margin-top:4px" onclick="document.getElementById('aM').remove()">× Жабу</button>
+  </div>`;
+  document.body.appendChild(bg);
+  window._aQs=[];
+}
+let _qIdx=0;
+function aAddQ(qtype){
+  const i=_qIdx++;
+  const ac=+( document.getElementById('aAC')?.value||4);
+  const letters=['A','B','C','D','E','F'].slice(0,ac);
+  const qt=qtype||document.getElementById('aqType'+i)||'single';
+  const el=document.createElement('div');
+  el.id='aq'+i;
+  el.style.cssText='background:rgba(255,255,255,.03);border:1px solid #1a1a2e;border-radius:10px;padding:13px;display:flex;flex-direction:column;gap:8px';
+
+  el.innerHTML=`
+  <div style="display:flex;justify-content:space-between;align-items:center">
+    <span class="il">СҰРАҚ ${i+1}</span>
+    <button class="ib del" onclick="document.getElementById('aq${i}').remove()">✕</button>
+  </div>
+  <!-- Сұрақ типі -->
+  <div class="ig">
+    <span class="il">СҰРАҚ ТҮРІ</span>
+    <select class="inp" id="aqType${i}" onchange="aQTypeChange(${i})" style="font-size:12px">
+      <option value="single">● Бір жауапты (дефолт)</option>
+      <option value="multi">☑ Көп жауапты</option>
+      <option value="text">📝 Мәнмәтін / Сипаттама</option>
+      <option value="match">🔗 Сәйкестендіру</option>
+    </select>
+  </div>
+  <!-- Сұрақ мәтіні -->
+  <textarea class="inp" id="aqT${i}" placeholder="Сұрақ мәтіні" rows="2"></textarea>
+  <!-- Медиа қосу (URL) -->
+  <div class="ig" id="aqMediaBox${i}" style="display:none">
+    <span class="il">МЕДИА URL (сурет/видео)</span>
+    <input class="inp" id="aqMedia${i}" placeholder="https://...">
+  </div>
+  <!-- Жауаптар (single/multi үшін) -->
+  <div id="aqOpts${i}">
+    ${letters.map((l,j)=>`<div style="display:flex;gap:8px;align-items:center;margin-bottom:5px">
+      <span style="font-size:11px;color:#445;width:14px;flex-shrink:0">${l}</span>
+      <input class="inp" id="aqO${i}_${j}" placeholder="${l} жауап" style="flex:1">
+      <input type="radio" name="aqC${i}" value="${j}" id="aqR${i}_${j}"
+        style="accent-color:#00ff88;width:16px;height:16px;flex-shrink:0">
+    </div>`).join('')}
+    <p style="font-size:9px;color:#445;letter-spacing:1px;margin-top:2px">← Дұрыс жауапты белгілеңіз</p>
+  </div>
+  <!-- Сәйкестендіру (match) -->
+  <div id="aqMatchBox${i}" style="display:none">
+    <p class="il" style="margin-bottom:6px">СӘЙКЕСТЕНДІРУ ЖҰПТАРЫ</p>
+    <div id="aqMatchPairs${i}"></div>
+    <button class="btn-o" style="font-size:11px;padding:8px" onclick="aAddMatchPair(${i})">+ Жұп қосу</button>
+  </div>
+  <!-- Түсіндірме -->
+  <div class="ig">
+    <span class="il">ТҮСІНДІРМЕ (міндетті емес)</span>
+    <textarea class="inp" id="aqEx${i}" placeholder="Дұрыс жауаптың түсіндірмесі…" rows="2" maxlength="300"></textarea>
+  </div>`;
+  document.getElementById('aQList').appendChild(el);
+}
+
+function aQTypeChange(i){
+  const t=document.getElementById('aqType'+i)?.value;
+  const opts=document.getElementById('aqOpts'+i);
+  const match=document.getElementById('aqMatchBox'+i);
+  const media=document.getElementById('aqMediaBox'+i);
+  if(opts) opts.style.display=(t==='match')?'none':'block';
+  if(match) match.style.display=(t==='match')?'block':'none';
+  if(media) media.style.display=(t==='text'||t==='match')?'none':'block';
+  // Multi — radio -> checkbox
+  if(t==='multi'||t==='single'){
+    const ac=+(document.getElementById('aAC')?.value||4);
+    for(let j=0;j<ac;j++){
+      const inp=document.getElementById('aqR'+i+'_'+j);
+      if(!inp)continue;
+      const newInp=inp.cloneNode();
+      newInp.type=t==='multi'?'checkbox':'radio';
+      if(t==='multi'){newInp.name='';newInp.id='aqR'+i+'_'+j;}
+      inp.replaceWith(newInp);
+    }
+  }
+}
+
+function aAddMatchPair(i){
+  const box=document.getElementById('aqMatchPairs'+i);if(!box)return;
+  const idx=box.children.length;
+  const div=document.createElement('div');
+  div.style.cssText='display:flex;gap:6px;align-items:center;margin-bottom:6px';
+  div.innerHTML=`<input class="inp" id="aqML${i}_${idx}" placeholder="Сол жақ" style="flex:1">
+    <span style="color:#445">↔</span>
+    <input class="inp" id="aqMR${i}_${idx}" placeholder="Оң жақ" style="flex:1">
+    <button class="ib del" onclick="this.parentElement.remove()" style="flex-shrink:0">✕</button>`;
+  box.appendChild(div);
+}
+async function aSave(){
+  setE('aErr','');
+  const title=v('aT');if(!title){setE('aErr','Тақырып міндетті');return;}
+  // Сұрақтарды жинау
+  const qs=[];
+  const defaultTL=+(document.getElementById('aDT')?.value||20);
+  const defaultAC=+(document.getElementById('aAC')?.value||4);
+  document.querySelectorAll('[id^="aqT"]').forEach(inp=>{
+    const i=inp.id.replace('aqT','');
+    const raw=inp.value||inp.textContent||'';
+    const text=raw.trim();if(!text)return;
+    const qtype=document.getElementById('aqType'+i)?.value||'single';
+    const ac=defaultAC;
+    const letters=['A','B','C','D','E','F'].slice(0,ac);
+    if(qtype==='match'){
+      // Сәйкестендіру жұптарын жинау
+      const pairs=[];
+      const box=document.getElementById('aqMatchPairs'+i);
+      if(box) box.querySelectorAll('div').forEach((_,pi)=>{
+        const l=document.getElementById(`aqML${i}_${pi}`)?.value?.trim();
+        const r=document.getElementById(`aqMR${i}_${pi}`)?.value?.trim();
+        if(l&&r) pairs.push({left:l,right:r});
+      });
+      const ex=document.getElementById(`aqEx${i}`)?.value?.trim()||'';
+      qs.push({text,options:pairs.map(p=>p.left),match_pairs:pairs,correct:0,
+        time_limit:defaultTL,explanation:ex||null,question_type:'match'});
+      return;
+    }
+    const opts=letters.map((_,j)=>document.getElementById(`aqO${i}_${j}`)?.value?.trim()||'');
+    // Multi — бірнеше checkbox
+    const correctArr=[];
+    for(let j=0;j<ac;j++){
+      const inp2=document.getElementById(`aqR${i}_${j}`);
+      if(inp2?.checked) correctArr.push(j);
+    }
+    const correct=correctArr.length?correctArr[0]:0;
+    const media=document.getElementById(`aqMedia${i}`)?.value?.trim()||null;
+    const ex=document.getElementById(`aqEx${i}`)?.value?.trim()||'';
+    qs.push({text,options:opts,correct,correct_multi:correctArr.length>1?correctArr:null,
+      time_limit:defaultTL,explanation:ex||null,
+      question_type:qtype,media_url:media||null});
+  });
+  try{
+    await dbApi('admin_create_test',{title,description:v('aD'),category:v('aC'),mode:v('aMd'),cover_emoji:v('aE')||'📝',is_public:document.getElementById('aPub')?.checked!==false,questions:qs});
+    document.getElementById('aM')?.remove();toast('Сақталды ✓');aTab('tests');
+  }catch(e){setE('aErr',e.message);}
+}
+async function aDel(id){
+  if(!confirm('Тестті жоясыз ба?'))return;
+  try{await dbApi('admin_delete_test',{test_id:id});toast('Жойылды');aTab('tests');}
+  catch(e){toast('Қате: '+e.message);}
+}
+
+async function aEditTest(testId){
+  // Тест деректерін жүктеу
+  let testData, questions=[];
+  try{
+    const d=await dbApi('get_test',{test_id:testId});
+    testData=d.test; questions=d.questions||[];
+  }catch(e){ toast('Жүктеу қатесі: '+e.message); return; }
+
+  const old=document.getElementById('aEd');if(old)old.remove();
+  const bg=document.createElement('div');bg.className='mbg show';bg.id='aEd';
+  bg.innerHTML=`<div class="modal" style="max-height:94vh;overflow-y:auto;gap:10px;padding-bottom:env(safe-area-inset-bottom,24px)">
+    <p class="mt">ТЕСТ ӨҢДЕУ</p>
+    <div class="fs">
+      <div class="ig"><span class="il">ТАҚЫРЫП *</span><input class="inp" id="edT" value="${esc(testData.title||'')}"></div>
+      <div class="ig"><span class="il">СИПАТТАМА</span><textarea class="inp" id="edD" rows="2">${esc(testData.description||'')}</textarea></div>
+      <div class="ig"><span class="il">КАТЕГОРИЯ</span><input class="inp" id="edC" value="${esc(testData.category||'')}"></div>
+      <div class="ig"><span class="il">РЕЖИМ</span>
+        <select class="inp" id="edMd">
+          <option value="quiz" ${testData.mode==='quiz'?'selected':''}>🎯 Куиз</option>
+          <option value="test" ${testData.mode==='test'?'selected':''}>📝 Тест</option>
+        </select></div>
+      <div class="ig"><span class="il">EMOJI</span><input class="inp" id="edE" value="${esc(testData.cover_emoji||'📝')}" style="font-size:22px"></div>
+      <div class="ig"><span class="il">ЖАЛПЫҒА АШЫҚ</span>
+        <label style="display:flex;align-items:center;gap:8px;cursor:pointer">
+          <input type="checkbox" id="edPub" ${testData.is_public!==false?'checked':''} style="accent-color:#00ff88;width:16px;height:16px">
+          <span style="font-size:12px;color:#778">Иә, барлығы көре алады</span>
+        </label></div>
+      <div class="divider"></div>
+      <p class="il" style="margin-bottom:6px">СҰРАҚТАР (${questions.length})</p>
+      <div id="edQList"></div>
+      <button class="btn-o" onclick="aAddEdQ()">➕ Сұрақ қосу</button>
+    </div>
+    <div class="ie" id="edErr"></div>
+    <button class="btn-g" onclick="aEdSave('${testId}')">💾 САҚТАУ</button>
+    <button class="btn-o" style="margin-top:4px" onclick="document.getElementById('aEd').remove()">× Жабу</button>
+  </div>`;
+  document.body.appendChild(bg);
+
+  // Бар сұрақтарды толтыру
+  window._edQs=questions;
+  window._edQIdx=0;
+  questions.forEach((q,i)=>aAddEdQ(q,i));
+}
+
+let _edQIdx=0;
+function aAddEdQ(existing,idx){
+  const i = idx!==undefined ? idx : window._edQIdx++;
+  if(idx===undefined) window._edQIdx=i+1;
+  const el=document.createElement('div');
+  el.id='edq'+i;
+  el.style.cssText='background:rgba(255,255,255,.03);border:1px solid #1a1a2e;border-radius:10px;padding:13px;display:flex;flex-direction:column;gap:8px;margin-bottom:8px';
+  const q=existing||{};
+  el.innerHTML=`
+    <div style="display:flex;justify-content:space-between;align-items:center">
+      <span class="il">СҰРАҚ ${i+1}</span>
+      <button class="ib del" onclick="document.getElementById('edq${i}').remove()">✕</button>
+    </div>
+    <input class="inp" id="edqT${i}" placeholder="Сұрақ мәтіні" value="${esc(q.text||'')}">
+    ${['A','B','C','D'].map((l,j)=>`
+      <div style="display:flex;gap:8px;align-items:center">
+        <span style="font-size:11px;color:#445;width:12px">${l}</span>
+        <input class="inp" id="edqO${i}_${j}" placeholder="${l} жауап" style="flex:1"
+          value="${esc((q.options||[])[j]||'')}">
+        <input type="radio" name="edqC${i}" value="${j}" id="edqR${i}_${j}"
+          style="accent-color:#00ff88" ${q.correct===j?'checked':''}>
+      </div>`).join('')}
+    <div style="display:flex;gap:10px">
+      <div class="ig" style="flex:1"><span class="il">УАҚЫТ (сек)</span>
+        <input class="inp" id="edqTL${i}" type="number" value="${q.time_limit||20}" min="5" max="120"></div>
+    </div>
+    <div class="ig"><span class="il">ТҮСІНДІРМЕ</span>
+      <textarea class="inp" id="edqEx${i}" rows="2" maxlength="300" placeholder="Дұрыс жауаптың түсіндірмесі…">${esc(q.explanation||'')}</textarea></div>`;
+  const list=document.getElementById('edQList');
+  if(list) list.appendChild(el);
+}
+
+async function aEdSave(testId){
+  setE('edErr','');
+  const title=document.getElementById('edT')?.value?.trim();
+  if(!title){setE('edErr','Тақырып міндетті');return;}
+  const qs=[];
+  document.querySelectorAll('[id^="edqT"]').forEach(inp=>{
+    const i=inp.id.replace('edqT','');
+    const text=inp.value.trim();if(!text)return;
+    const opts=['A','B','C','D'].map((_,j)=>document.getElementById(`edqO${i}_${j}`)?.value?.trim()||'');
+    const checked=document.querySelector(`input[name="edqC${i}"]:checked`);
+    const correct=checked?+checked.value:0;
+    const tl=+(document.getElementById(`edqTL${i}`)?.value||20);
+    const ex=document.getElementById(`edqEx${i}`)?.value?.trim()||'';
+    qs.push({text,options:opts,correct,time_limit:tl,explanation:ex||null});
+  });
+  try{
+    await dbApi('admin_update_test',{
+      test_id:testId,
+      title,
+      description:document.getElementById('edD')?.value?.trim()||null,
+      category:document.getElementById('edC')?.value?.trim()||null,
+      mode:document.getElementById('edMd')?.value||'quiz',
+      cover_emoji:document.getElementById('edE')?.value?.trim()||'📝',
+      is_public:document.getElementById('edPub')?.checked!==false,
+      questions:qs
+    });
+    document.getElementById('aEd')?.remove();
+    toast('Тест жаңартылды ✓'); aTab('tests');
+  }catch(e){setE('edErr',e.message);}
+}
+
+// ── EMOJI ─────────────────────────────────────────────
+function buildEG(id){
+  const g=document.getElementById(id);if(!g)return;
+  g.innerHTML=EMOJIS.map(e=>`<button class="eo${selEmoji===e?' sel':''}" onclick="pickE('${e}')">${e}</button>`).join('');
+}
+
+// ── UTILS ─────────────────────────────────────────────
+function spawn(ok){
+  const c=ok?'#00ff88':'#ff4466';const cx=innerWidth/2,cy=innerHeight*.5;
+  for(let i=0;i<12;i++){
+    const el=document.createElement('div');el.className='particle';
+    el.style.cssText=`left:${cx}px;top:${cy}px;background:${c}`;
+    const a=Math.random()*2*Math.PI,d=40+Math.random()*80;
+    el.style.setProperty('--dx',Math.cos(a)*d+'px');el.style.setProperty('--dy',Math.sin(a)*d-40+'px');
+    document.body.appendChild(el);setTimeout(()=>el.remove(),900);
+  }
+}
+let _tt;
+function toast(m){const t=document.getElementById('toast');t.textContent=m;t.classList.add('show');clearTimeout(_tt);_tt=setTimeout(()=>t.classList.remove('show'),2500);}
+function v(id){return document.getElementById(id)?.value?.trim()||'';}
+function setE(id,m){const e=document.getElementById(id);if(e)e.textContent=m;}
+function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+function ld(){return`<div style="display:flex;flex-direction:column;align-items:center;gap:14px;padding:40px 0"><div style="display:flex"><div style="width:8px;height:8px;border-radius:50%;background:#00ff88;margin:0 4px;animation:pulse 1s infinite"></div><div style="width:8px;height:8px;border-radius:50%;background:#00ff88;margin:0 4px;animation:pulse 1s .2s infinite"></div><div style="width:8px;height:8px;border-radius:50%;background:#00ff88;margin:0 4px;animation:pulse 1s .4s infinite"></div></div><p style="font-size:11px;color:#334;letter-spacing:2px">Жүктелуде…</p></div>`;}
+
+// ── Builtin questions schema ──────────────────────────
+// Supabase-та builtin_questions кестесі керек:
+// CREATE TABLE IF NOT EXISTS builtin_questions (
+//   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+//   slug text NOT NULL,
+//   question text NOT NULL,
+//   answer text NOT NULL,
+//   flag text,
+//   images jsonb,
+//   created_at timestamptz DEFAULT now()
+// );
+
+init();
+</script>
+</body>
+</html>
